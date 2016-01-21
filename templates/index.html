@@ -8,21 +8,45 @@
         <title>GeoAnnotator</title>
 
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-
+        <script src="{% static 'js' %}/OpenLayers.js"></script>
+        <script src="{% static 'js' %}/tiles.js"></script>
         <script src="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.3/semantic.min.js"></script>
         <link href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.3/semantic.min.css" rel="stylesheet" class="ui" />
         <style type="text/css">
-            #searchbox {
-                width: auto;
-                height: auto;
-                padding: 0;
-            }
             #doc_content {
                 position: absolute;
                 top:2em;
                 bottom:0;
+                right:0;
+                left:0;
                 overflow: auto;
                 font-size:1.2em;
+            }
+            #search_results {
+                position: absolute;
+                top:3em;
+                height: 6em;
+                overflow: auto;
+            }
+            #search_area {
+                position: absolute;
+                height: 2em;
+                left: 1em;
+                display: inline;
+            }
+            #map {
+                position: absolute;
+                bottom:0;
+                right:2em;
+                top:11em;
+                left:1em;
+            }
+            #map_toolbar {
+                position: absolute;
+                top: 9em;
+                height:2em;
+                right:0;
+                left:1em;
             }
             .noselect {
                 -webkit-touch-callout: none;
@@ -37,6 +61,7 @@
             }
             .tk.p {
                 background-color: #FF66CC;
+                cursor: pointer;
             }
             .tk.highlighted { /* must be put after p, q and c */
                 background-color: #f2c61f;
@@ -59,15 +84,19 @@
                 </div>
             </div>
             <div class="eight wide column">
-                <form id="searchbox" class="ui form">
-                    <div class="inline field">
-                        <input id="search_text" type="text" placeholder="">
-                        <button id="search_nominatim" class="ui button">Search on Nominatim</button>
-                        <input id="place_id" type="text" size="6" placeholder="ID">
-                        <button id="save_annotation" class="ui button">Save</button>
-                    </div>
-                </form>
-                <iframe id="map" src="//gir.ist.psu.edu/nominatim/" width="700" height="500"></iframe>
+                <div id="search_area">
+                    <input id="search_text" type="text" size="20" placeholder="">
+                    <button id="search_nominatim">Search Nominatim</button>
+                    <input id="place_id" type="text" size="6" placeholder="ID" disabled>
+                    <button id="save_annotation">Save</button>
+                </div>
+                <div id="search_results"></div>
+                <div id="map_toolbar">
+                    <button id="draw_line">Draw line</button>
+                    <button id="draw_polygon">Draw polygon</button>
+                    <select id="custom_shapes"></select>
+                </div>
+                <div id="map"></div>
             </div>
         </div>
         <script src="{% static 'js' %}/main.js"></script>

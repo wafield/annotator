@@ -30,12 +30,30 @@ def get_doc(request):
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
 def add_annotation(request):
-    print "here"
     text = request.REQUEST.get('text')
     place_id = request.REQUEST.get('place_id')
-    Annotation.objects.create(text=text, place_id=place_id)
+    start = request.REQUEST.get('start')
+    end = request.REQUEST.get('end')
+    context_id = request.REQUEST.get('context_id')
+    source = Article.objects.get(id=context_id)
+    geotext = request.REQUEST.get('geotext')
+    Annotation.objects.create(text=text, place_id=place_id, start=start, end=end, source=source, shape=geotext)
     return HttpResponse(json.dumps({}), mimetype='application/json')
 
+def load_annotation(request):
+    context_id = request.REQUEST.get('context_id')
+    annotations = Annotation.objects.filter(source_id=context_id)
+    response = {'highlights': []}
+    for annotation in annotations:
+        response['highlights'].append({
+            'id': annotation.id,
+            'text': annotation.text,
+            'place_id': annotation.place_id,
+            'start': annotation.start,
+            'end': annotation.end,
+            'shape': annotation.shape
+        })
+    return HttpResponse(json.dumps(response), mimetype='application/json')
 
 def segment_text(content):
     s = Segmenter()

@@ -19,7 +19,10 @@ class Article(models.Model):
 
 class Annotation(models.Model):
     text = models.TextField()
-    place_id = models.TextField()
+    place_id = models.TextField(null=True, blank=True)
     source = models.ForeignKey(Article, null=True, blank=True)
+    start = models.IntegerField(null=True, blank=True)
+    end = models.IntegerField(null=True, blank=True)
+    shape = models.TextField(null=True, blank=True)
     class Meta:
         db_table = 'annotation'
