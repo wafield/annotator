@@ -1,6 +1,6 @@
 from django.contrib.gis.db import models
 
-import datetime, time
+import nltk
 
 class Article(models.Model):
     subject = models.TextField(null=True, blank=True)
@@ -13,6 +13,9 @@ class Article(models.Model):
 
     class Meta:
         db_table = 'article'
+
+    def get_sentences(self):
+        return nltk.sent_tokenize(self.content)
 
 class Annotation(models.Model):
     text = models.TextField()

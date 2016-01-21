@@ -10,28 +10,55 @@
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 
         <script src="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.3/semantic.min.js"></script>
-        <link href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.3/semantic.min.css" rel="stylesheet" class="ui"></script>
-        <style media="screen">
+        <link href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.1.3/semantic.min.css" rel="stylesheet" class="ui" />
+        <style type="text/css">
             #searchbox {
                 width: auto;
                 height: auto;
                 padding: 0;
             }
+            #doc_content {
+                position: absolute;
+                top:2em;
+                bottom:0;
+                overflow: auto;
+                font-size:1.2em;
+            }
+            .noselect {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+            .tk {
+                text-decoration: none;
+            }
+            .tk.p {
+                background-color: #FF66CC;
+            }
+            .tk.highlighted { /* must be put after p, q and c */
+                background-color: #f2c61f;
+            }
         </style>
     </head>
-    <body style="">
-        <div class="ui grid" style="height:100%">
-            <div class="five wide column" style="height:100%">
-                <div class="ui segment" style="height:100%;overflow:auto">
-                    <h1>Article list</h1>
-                    {% for article in articles %}<div class="ui vertical segment">
-                        [{{ forloop.counter }}] <a style="cursor:pointer" class="item article title" data-id="{{ article.id }}">{{ article.subject }}</a>
-                    </div>{% endfor %}
+    <body>
+        <div class="ui sidebar inverted vertical menu">
+            <div class="item">Articles</div>
+            {% for article in articles %}
+                 <a class="item article title" data-id="{{ article.id }}">[{{ article.id }}] {{ article.subject }}</a>
+            {% endfor %}
+        </div>
+        <div class="ui grid pusher" style="height:100%">
+            <div class="eight wide column" style="height:100%">
+                <a id="show_article_list" class="ui label"><< Select an article</a>
+                <span id="article_title"></span>
+                <div class="ui segment noselect" id="doc_content">
+                    <div class="ui info message">Please select an article.</div>
                 </div>
-
             </div>
-            <div class="ten wide column" style="height:50%">
-                <div class="ui segment" id="doc_container" style="height:100%;overflow:auto;display:none"></div>
+            <div class="eight wide column">
                 <form id="searchbox" class="ui form">
                     <div class="inline field">
                         <input id="search_text" type="text" placeholder="">
@@ -39,13 +66,10 @@
                         <input id="place_id" type="text" size="6" placeholder="ID">
                         <button id="save_annotation" class="ui button">Save</button>
                     </div>
-
                 </form>
                 <iframe id="map" src="//gir.ist.psu.edu/nominatim/" width="700" height="500"></iframe>
             </div>
         </div>
-
-
         <script src="{% static 'js' %}/main.js"></script>
     </body>
 </html>
