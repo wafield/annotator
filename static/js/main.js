@@ -364,6 +364,11 @@ function showDetail(geotext, shapetype) {
     var format = new ol.format.WKT();
     var feature = format.readFeature(geotext);
     feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+    if (shapetype == 'custom') {
+        feature.setStyle(window.vectorStyles.custom);
+    } else {
+        feature.setStyle(window.vectorStyles.nominatim);
+    }
     window.vectorSource.addFeature(feature);
     window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize());
 }
@@ -371,6 +376,40 @@ function initmap() {
 
     window.vectorSource = new ol.source.Vector();
     window.drawSource = new ol.source.Vector();
+
+    window.vectorStyles = {
+        nominatim: new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: 'blue',
+                width: 3
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(0, 0, 255, 0.1)'
+            }),
+            image: new ol.style.Circle({
+                radius: 15,
+                fill: new ol.style.Fill({
+                    color: 'blue'
+                })
+            })
+        }),
+        custom: new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: '#FF66CC',
+                width: 3
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(0, 0, 255, 0.1)'
+            }),
+            image: new ol.style.Circle({
+                radius: 15,
+                fill: new ol.style.Fill({
+                    color: '#FF66CC'
+                })
+            })
+        })
+    };
+
     window.map = new ol.Map({
         target: 'map',
         interactions: ol.interaction.defaults({doubleClickZoom: false}),
@@ -380,21 +419,6 @@ function initmap() {
             }),
             new ol.layer.Vector({
                 source: window.vectorSource,
-                style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: 'blue',
-                        width: 3
-                    }),
-                    fill: new ol.style.Fill({
-                        color: 'rgba(0, 0, 255, 0.1)'
-                    }),
-                    image: new ol.style.Circle({
-                        radius: 15,
-                        fill: new ol.style.Fill({
-                            color: 'blue'
-                        })
-                    }),
-                })
             }),
             new ol.layer.Vector({
                 source: window.drawSource,
