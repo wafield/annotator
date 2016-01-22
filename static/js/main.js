@@ -47,6 +47,7 @@ $(document).ready(function() {
     });
     $('body').on('click', '#search_nominatim', function(e) {
         e.preventDefault();
+        $('#search_results').html('Searching...');
         var text = $('#search_text').val();
         var searchtext = text.trim().replace(' ', '+');
         var results = [];
@@ -86,6 +87,18 @@ $(document).ready(function() {
                         });
                     }
                 });
+            }
+        });
+    }).on('click', '#search_global', function(e) {
+        e.preventDefault();
+        $('#search_results').html('Searching...');
+        var text = $('#search_text').val();
+        var searchtext = text.trim().replace(' ', '+');
+        $.ajax({
+            url: '//nominatim.openstreetmap.org/search.php',
+            data: 'q=' + searchtext + '&format=json&polygon_text=1',
+            success: function (xhr) {
+                showResults(xhr);
             }
         });
     });
