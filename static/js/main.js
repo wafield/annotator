@@ -140,20 +140,71 @@ $(document).ready(function() {
             }
         });
     });
-    $('#draw_line').click(function() {
-        window.drawControls.line.activate();
-    });
-    $('#draw_polygon').click(function () {
-        window.drawControls.polygon.activate();
+
+    $('#save_shape').click(function() {
+        if (Object.keys(window.newHighlight).length == 0) {
+            alert('Error. Did you highlight any text?');
+            return;
+        }
+        var feature = window.drawSource.getFeatures();
+        if (feature.length != 1) {
+            alert('There should be exactly 1 shape on the map.');
+            return;
+        }
+        feature[0].getGeometry().transform('EPSG:3857', 'EPSG:4326');
+
+        var text = $('#search_text').val();
+        var start = window.newHighlight.start;
+        var end = window.newHighlight.end;
+        var context_id = window.newHighlight.context_id;
+        $.ajax({
+            url: 'new_annotation',
+            data: {
+                'text': text,
+                'start': start,
+                'end': end,
+                'context_id': context_id,
+                'geotext': new ol.format.WKT().writeFeature(feature[0])
+            },
+            type: 'post',
+            success: function () {
+                $('#place_id').val('');
+                $('#search_text').val('');
+                reloadHighlights(context_id);
+                window.drawSource.clear();
+                $('#save_shape').attr('disabled', 'true');
+            }
+        })
     });
     $('#draw_line,#draw_polygon').click(function() {
         $('#draw_line,#draw_polygon').attr('disabled', 'true');
+        window.drawSource.clear();
+        $('#place_id').val('');
         $(this).text('Double click the map to end drawing');
+        ol.interaction.defaults({
+            doubleClickZoom: false
+        });
+
+        var value = $(this).is('#draw_line') ? 'LineString' : 'Polygon';
+        window.draw = new ol.interaction.Draw({
+            source: window.drawSource,
+            type: /** @type {ol.geom.GeometryType} */ (value)
+        });
+        window.map.addInteraction(window.draw);
+        window.draw.on('drawend', endDrawing);
+
     });
 
     function endDrawing() {
-        $('#draw_shape').removeAttr('disabled');
-        $('#draw_shape').text('Draw');
+        window.map.removeInteraction(window.draw);
+        $('#draw_line').removeAttr('disabled');
+        $('#draw_line').text('Draw line');
+        $('#draw_polygon').removeAttr('disabled');
+        $('#draw_polygon').text('Draw polygon');
+        ol.interaction.defaults({
+            doubleClickZoom: true
+        });
+        $('#save_shape').removeAttr('disabled');
     }
 
     function showResults(results) {
@@ -184,7 +235,6 @@ $(document).ready(function() {
         var start = window.newHighlight.start;
         var end = window.newHighlight.end;
         var context_id = window.newHighlight.context_id;
-        var geotext = window.geotext;
         $.ajax({
             url: 'new_annotation',
             data: {
@@ -194,7 +244,6 @@ $(document).ready(function() {
                 'end': end,
                 'context_id': context_id,
                 'geotext': window.geotext,
-
             },
             type: 'post',
             success: function() {
@@ -228,6 +277,12 @@ function reloadHighlights(context_id) {
     });
 }
 
+function reloadSavedShapes() {
+    $.ajax({
+
+    });
+}
+
 function highlight(highlight) {
     var $context = $('#doc_content');
     // loop over all words in the highlight
@@ -237,80 +292,78 @@ function highlight(highlight) {
             $token.addClass('p').attr('data-hl-id', highlight.id);
         } else {
             var curr_id = $token.attr('data-hl-id'); // append highlight for this word
-            $token.addClass(className).attr('data-hl-id', curr_id + ' ' + highlight.id);
+            $token.addClass('p').attr('data-hl-id', curr_id + ' ' + highlight.id);
         }
     }
 }
 
 function showDetail(place_id, geotext) {
-    window.vectorLayer.destroyFeatures();
+    window.vectorSource.clear();
     if (typeof geotext == 'undefined') { // when clicking search result
         window.geotext = window.searchResults[place_id].geotext;
     } else { // when clicking annotated text
         window.geotext = geotext;
     }
 
-    var proj_EPSG4326 = new OpenLayers.Projection("EPSG:4326");
-    var proj_map = window.map.getProjectionObject();
-
-    var freader = new OpenLayers.Format.WKT({
-        'internalProjection': proj_map,
-        'externalProjection': proj_EPSG4326
-    });
-
-    var feature = freader.read(window.geotext);
-    if (feature) {
-        window.map.zoomToExtent(feature.geometry.getBounds());
-        feature.style = {
-            strokeColor: "#75ADFF",
-            fillColor: "#F0F7FF",
-            strokeWidth: 5,
-            strokeOpacity: 0.75,
-            fillOpacity: 0.75,
-            pointRadius: 50
-        };
-
-        vectorLayer.addFeatures([feature]);
-    }
+    var format = new ol.format.WKT();
+    var feature = format.readFeature(window.geotext);
+    feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+    window.vectorSource.addFeature(feature);
+    window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize());
 }
 function initmap() {
 
-    window.map = new OpenLayers.Map("map", {
-        controls:[
-            new OpenLayers.Control.Navigation(),
-            new OpenLayers.Control.PanZoomBar(),
-            new OpenLayers.Control.Attribution(),
+    window.vectorSource = new ol.source.Vector();
+    window.drawSource = new ol.source.Vector();
+    window.map = new ol.Map({
+        target: 'map',
+        layers: [
+            new ol.layer.Tile({
+                source: new ol.source.OSM()
+            }),
+            new ol.layer.Vector({
+                source: window.vectorSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: 'blue',
+                        width: 3
+                    }),
+                    fill: new ol.style.Fill({
+                        color: 'rgba(0, 0, 255, 0.1)'
+                    }),
+                    image: new ol.style.Circle({
+                        radius: 15,
+                        fill: new ol.style.Fill({
+                            color: 'blue'
+                        })
+                    }),
+                })
+            }),
+            new ol.layer.Vector({
+                source: window.drawSource,
+                style: new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(255, 255, 255, 0.2)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: '#ff66cc',
+                        width: 3
+                    }),
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({
+                            color: '#ff66cc'
+                        })
+                    })
+                })
+            })
         ],
-        maxExtent: new OpenLayers.Bounds(-13618945.057011, 2061426.8121267, -7220248.546093, 7687192.0931325),
-        maxResolution: 156543.0399,
-        numZoomLevels: 19,
-        units: 'm',
-        projection: new OpenLayers.Projection("EPSG:900913"),
-        displayProjection: new OpenLayers.Projection("EPSG:4326")
+        view: new ol.View({
+            center: ol.proj.fromLonLat([-77.86, 40.80]),
+            maxZoom: 19,
+            zoom: 12
+        })
     });
-
-    var drawLayer = new OpenLayers.Layer.Vector("Draw Layer");
-
-    window.drawControls = {
-        line: new OpenLayers.Control.DrawFeature(drawLayer,
-            OpenLayers.Handler.Path),
-        polygon: new OpenLayers.Control.DrawFeature(drawLayer,
-            OpenLayers.Handler.Polygon),
-    };
-
-    window.map.addControl(drawControls.line);
-    window.map.addControl(drawControls.polygon);
-
-    window.map.addLayer(new OpenLayers.Layer.OSM.Mapnik("Default"));
-    window.map.addLayer(drawLayer);
-
-    var layer_style = OpenLayers.Util.extend({}, OpenLayers.Feature.Vector.style['default']);
-    layer_style.fillOpacity = 0.2;
-    layer_style.graphicOpacity = 0.2;
-
-    window.vectorLayer = new OpenLayers.Layer.Vector("Points", {style: layer_style});
-    window.map.addLayer(window.vectorLayer);
-
 }
 function getSelectionText() {
     var text = "";
