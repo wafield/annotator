@@ -1,7 +1,7 @@
 import json
 import re
 from HTMLParser import HTMLParser, HTMLParseError
-
+from django.utils import timezone
 
 from django.shortcuts import render, render_to_response
 from django.http import HttpResponse
@@ -25,19 +25,39 @@ def get_doc(request):
     content = segment_text(content)
     response = {
         'title': art.subject,
-        'content': content
+        'content': content,
+        'id': art.id
     }
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
-def add_annotation(request):
+def new_annotation(request):
     text = request.REQUEST.get('text')
     place_id = request.REQUEST.get('place_id')
+    custom_place_id = request.REQUEST.get('custom_place_id') # when adding to a custom place
     start = request.REQUEST.get('start')
     end = request.REQUEST.get('end')
     context_id = request.REQUEST.get('context_id')
     source = Article.objects.get(id=context_id)
-    geotext = request.REQUEST.get('geotext')
-    Annotation.objects.create(text=text, place_id=place_id, start=start, end=end, source=source, shape=geotext)
+    geotext = request.REQUEST.get('geotext') # only when user-drawn
+    place_name = request.REQUEST.get('place_name')  # only when user-drawn
+    now = timezone.now()
+
+    # adding to custom place
+    if custom_place_id:
+        place = CustomPlace.objects.get(id=custom_place_id)
+        Annotation.objects.create(text=text, custom_place=place, start=start, end=end,
+                                  source=source, shape=geotext, created_at=now)
+    # creating a new custom place
+    elif geotext and place_name and len(geotext) > 0 and len(place_name) > 0:
+        newPlace = CustomPlace(shape=geotext, place_name=place_name, created_at=now)
+        newPlace.save()
+        Annotation.objects.create(text=text, custom_place=newPlace, start=start, end=end,
+                                  source=source, shape=geotext, created_at=now)
+
+    # refering to Nominatim place
+    else:
+        Annotation.objects.create(text=text, place_id=place_id, start=start,
+                                  end=end, source=source, shape=geotext, created_at=now)
     return HttpResponse(json.dumps({}), mimetype='application/json')
 
 def load_annotation(request):
@@ -45,13 +65,27 @@ def load_annotation(request):
     annotations = Annotation.objects.filter(source_id=context_id)
     response = {'highlights': []}
     for annotation in annotations:
-        response['highlights'].append({
+        annotation_info = {
             'id': annotation.id,
             'text': annotation.text,
-            'place_id': annotation.place_id,
             'start': annotation.start,
             'end': annotation.end,
             'shape': annotation.shape
+        }
+        if annotation.custom_place:
+            annotation_info['custom_place_id'] = annotation.custom_place_id
+        else:
+            annotation_info['place_id'] = annotation.place_id
+        response['highlights'].append(annotation_info)
+    return HttpResponse(json.dumps(response), mimetype='application/json')
+
+def load_custom_shapes(request):
+    response = {'places': []}
+    for place in CustomPlace.objects.all().order_by('created_at'):
+        response['places'].append({
+            'id': place.id,
+            'place_name': place.place_name,
+            'geotext': place.shape,
         })
     return HttpResponse(json.dumps(response), mimetype='application/json')
 

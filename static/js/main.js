@@ -5,68 +5,16 @@ $(document).ready(function() {
     window.highlightsData = {};
     window.isDragging = false;
 
+    window.customShapes = {};
+
     window.map = null;
 
     initmap();
 
-    $('body').on('mousedown', '#doc_content', function(e) {
-        if ($(e.target).is('u.tk')) {
-            var $target = $(this);
-            $(window).mousemove(function(e2) {
-                if ($(e2.target).hasClass('tk')) {
-                    window.isDragging = true;
-                    window.newHighlight.end = e2.target.getAttribute('data-id');
-                    var min = Math.min(window.newHighlight.start, window.newHighlight.end);
-                    var max = Math.max(window.newHighlight.start, window.newHighlight.end);
-                    $target.find('.tk').removeClass('highlighted');
-                    for (var i = min; i <= max; i++) {
-                        $target.find('.tk[data-id="' + i + '"]').addClass('highlighted');
-                    }
-                } else {
-                    $target.find('.tk').removeClass('highlighted');
-                }
-            });
-            window.newHighlight.start = e.target.getAttribute('data-id');
-            window.newHighlight.end = e.target.getAttribute('data-id');
-        }
-    }).on('mouseup', '#doc_content', function(e) {
-        $(window).off('mousemove');
-        var wasDragging = window.isDragging;
-        window.isDragging = false;
-        if (wasDragging) {
-            var min = Math.min(window.newHighlight.start, window.newHighlight.end);
-            var max = Math.max(window.newHighlight.start, window.newHighlight.end);
-            window.newHighlight.start = min;
-            window.newHighlight.end = max;
+    initAnnotationControls();
+    reloadSavedShapes();
 
-            if ($(this).find('.tk.highlighted').length) {
-                var highlights = $(this).find('.tk.highlighted');
-                var text = "";
-                for (var i = 0; i < highlights.length; i ++) {
-                    text += highlights[i].textContent;
-                };
-                window.newHighlight.text = text;
-                window.newHighlight.context_id = $('#doc_content').attr('data-article-id');
-                $('#search_text').val(window.newHighlight.text);
-            }
-        } else { // just clicking
-            $(this).find('.tk').removeClass('highlighted');
-            window.newHighlight = {};
-        }
-    }).on('click', '.tk.p', function(e) {
-        e.stopPropagation();
-        var highlight_id = this.getAttribute('data-hl-id').split(' ')[0];
-        var highlightData = window.highlightsData[highlight_id];
-        $('#search_text').val(highlightData.text);
-        $('#place_id').val(highlightData.place_id);
-        showDetail(highlightData.place_id, highlightData['shape']);
-    });
-    $('#search_text').keypress(function (e) {
-        if (e.which == 13) {
-            $('#search_nominatim').trigger('click');
-            return false;
-        }
-    });
+
     $('body').on('click', '#show_article_list', function() {
         $('.ui.sidebar')
             .sidebar('setting', 'dimPage', 'false')
@@ -80,10 +28,11 @@ $(document).ready(function() {
                 'id': id
             },
             success: function(xhr) {
-                $('#article_title').text(xhr.title);
+                $('#article_title').text('[' + xhr.id + '] ' + xhr.title);
                 var sentences = xhr.content;
-                $('#doc_content').html(sentences);
-                $('#doc_content').attr("data-article-id", id);
+                $('#doc_content')
+                    .html(sentences)
+                    .attr("data-article-id", id);
                 reloadHighlights(id);
             }
         });
@@ -151,9 +100,25 @@ $(document).ready(function() {
             alert('There should be exactly 1 shape on the map.');
             return;
         }
-        feature[0].getGeometry().transform('EPSG:3857', 'EPSG:4326');
 
         var text = $('#search_text').val();
+        var place_name = window.prompt('Please input the name of this place', text);
+        if (place_name == null) {
+            return; // do nothing more; allow user to redraw
+        }
+        if (place_name.length == 0) {
+            alert('Place name should not be empty.');
+            return;
+        }
+        var confirmtext = "Save the following annotation?" +
+            "\nAnnotated text: " + $('#search_text').val() +
+            "\nPlace name: " + place_name +
+            "\nShape: (the line/polygon you drew)."
+        var dosave = window.confirm(confirmtext);
+        if (dosave == false) return;
+
+        feature[0].getGeometry().transform('EPSG:3857', 'EPSG:4326');
+
         var start = window.newHighlight.start;
         var end = window.newHighlight.end;
         var context_id = window.newHighlight.context_id;
@@ -164,15 +129,18 @@ $(document).ready(function() {
                 'start': start,
                 'end': end,
                 'context_id': context_id,
+                'place_name': place_name,
                 'geotext': new ol.format.WKT().writeFeature(feature[0])
             },
             type: 'post',
             success: function () {
-                $('#place_id').val('');
                 $('#search_text').val('');
                 reloadHighlights(context_id);
                 window.drawSource.clear();
                 $('#save_shape').attr('disabled', 'true');
+                reloadSavedShapes();
+                $('#save_annotation').attr('disabled', 'true');
+                $('#custom_shapes').val('-1');
             }
         })
     });
@@ -180,11 +148,6 @@ $(document).ready(function() {
         $('#draw_line,#draw_polygon').attr('disabled', 'true');
         window.drawSource.clear();
         $('#place_id').val('');
-        $(this).text('Double click the map to end drawing');
-        ol.interaction.defaults({
-            doubleClickZoom: false
-        });
-
         var value = $(this).is('#draw_line') ? 'LineString' : 'Polygon';
         window.draw = new ol.interaction.Draw({
             source: window.drawSource,
@@ -192,19 +155,15 @@ $(document).ready(function() {
         });
         window.map.addInteraction(window.draw);
         window.draw.on('drawend', endDrawing);
-
+        $('#searcher_overlay').show();
     });
 
     function endDrawing() {
         window.map.removeInteraction(window.draw);
         $('#draw_line').removeAttr('disabled');
-        $('#draw_line').text('Draw line');
         $('#draw_polygon').removeAttr('disabled');
-        $('#draw_polygon').text('Draw polygon');
-        ol.interaction.defaults({
-            doubleClickZoom: true
-        });
         $('#save_shape').removeAttr('disabled');
+        $('#searcher_overlay').hide();
     }
 
     function showResults(results) {
@@ -213,7 +172,8 @@ $(document).ready(function() {
         if (results.length == 0) html += '<div class="item">No result</div>';
         results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
         for (var i =0; i < results.length; i ++) {
-            html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + results[i].display_name + ' (' + results[i].type + ')</a>';
+            var shortname = results[i].display_name.replace(/, United States of America$/, '');
+            html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + shortname + ' (' + results[i].type + ')</a>';
             window.searchResults[results[i].place_id] = results[i];
         }
         html += '</div>';
@@ -221,41 +181,129 @@ $(document).ready(function() {
     }
 
     $('body').on('click', '.place.item', function() {
+        $('#custom_shapes').val('-1');
         var place_id = this.getAttribute('data-place-id');
-        showDetail(place_id);
-        $('#place_id').val(place_id);
+        var geotext = window.searchResults[place_id].geotext;
+        showDetail(geotext);
+        window.newHighlight.place_id = place_id;
+        delete window.newHighlight.custom_place_id;
+        $('#save_annotation').removeAttr('disabled');
     });
     $('body').on('click', '#save_annotation', function(e) {
         e.preventDefault();
         if (Object.keys(window.newHighlight).length == 0) {
             alert('Error. Did you highlight any text?');
+        }
+        var data = {
+            'text': $('#search_text').val(),
+            'start': window.newHighlight.start,
+            'end': window.newHighlight.end,
+            'context_id': window.newHighlight.context_id,
+            'geotext': window.geotext
         };
-        var text = $('#search_text').val();
-        var place_id = $('#place_id').val();
-        var start = window.newHighlight.start;
-        var end = window.newHighlight.end;
-        var context_id = window.newHighlight.context_id;
+        if ('place_id' in window.newHighlight) {
+            data['place_id'] = window.newHighlight.place_id;
+        } else if ('custom_place_id' in window.newHighlight) {
+            data['custom_place_id'] = window.newHighlight.custom_place_id;
+        }
         $.ajax({
             url: 'new_annotation',
-            data: {
-                'text': text,
-                'place_id': place_id,
-                'start': start,
-                'end': end,
-                'context_id': context_id,
-                'geotext': window.geotext,
-            },
+            data: data,
             type: 'post',
             success: function() {
-                $('#place_id').val('');
                 $('#search_text').val('');
-                reloadHighlights(context_id);
+                reloadHighlights(window.newHighlight.context_id);
+                $('#save_annotation').attr('disabled', 'true');
+                $('#custom_shapes').val('-1');
             }
         });
     });
 });
 
+function initAnnotationControls() {
+    $('body').on('mousedown', '#doc_content', function (e) {
+        if ($(e.target).is('u.tk')) {
+            var $target = $(this);
+            $(window).mousemove(function (e2) {
+                if ($(e2.target).hasClass('tk')) {
+                    window.isDragging = true;
+                    window.newHighlight.end = e2.target.getAttribute('data-id');
+                    var min = Math.min(window.newHighlight.start, window.newHighlight.end);
+                    var max = Math.max(window.newHighlight.start, window.newHighlight.end);
+                    $target.find('.tk').removeClass('highlighted');
+                    for (var i = min; i <= max; i++) {
+                        $target.find('.tk[data-id="' + i + '"]').addClass('highlighted');
+                    }
+                } else {
+                    $target.find('.tk').removeClass('highlighted');
+                }
+            });
+            window.newHighlight.start = e.target.getAttribute('data-id');
+            window.newHighlight.end = e.target.getAttribute('data-id');
+        }
+    }).on('mouseup', '#doc_content', function (e) {
+        $(window).off('mousemove');
+        var wasDragging = window.isDragging;
+        window.isDragging = false;
+        if (wasDragging) {
+            var min = Math.min(window.newHighlight.start, window.newHighlight.end);
+            var max = Math.max(window.newHighlight.start, window.newHighlight.end);
+            window.newHighlight.start = min;
+            window.newHighlight.end = max;
+
+            if ($(this).find('.tk.highlighted').length) {
+                var highlights = $(this).find('.tk.highlighted');
+                var text = "";
+                for (var i = 0; i < highlights.length; i++) {
+                    text += highlights[i].textContent;
+                }
+                ;
+                window.newHighlight.text = text;
+                window.newHighlight.context_id = $('#doc_content').attr('data-article-id');
+                $('#search_text').val(window.newHighlight.text);
+                $('#annotation_overlay').hide();
+            }
+        } else { // just clicking
+            $(this).find('.tk').removeClass('highlighted');
+            window.newHighlight = {};
+            $('#search_text').val('');
+            $('#annotation_overlay').show();
+        }
+    }).on('click', '.tk.p,.tk.cp', function (e) {
+        e.stopPropagation();
+        var highlight_id = this.getAttribute('data-hl-id').split(' ')[0];
+        var highlightData = window.highlightsData[highlight_id];
+        $('#search_text').val(highlightData.text);
+        if ($(this).hasClass('cp')) { // update custom_shape select
+            showDetail(highlightData['shape'], 'custom');
+            $('#custom_shapes').val(highlightData.custom_place_id);
+        } else {
+            showDetail(highlightData['shape']);
+            $('#custom_shapes').val('-1');
+        }
+    });
+    $('#search_text').keypress(function (e) {
+        if (e.which == 13) {
+            $('#search_nominatim').trigger('click');
+            return false;
+        }
+    });
+    $('#custom_shapes').on('change', function() {
+        var custom_place_id = $(this).find(':selected').val();
+        if (custom_place_id in window.customShapes) {
+            showDetail(window.customShapes[custom_place_id].geotext, 'custom');
+            window.newHighlight.custom_place_id = custom_place_id;
+            delete window.newHighlight.place_id;
+            $('#save_annotation').removeAttr('disabled');
+        } else {
+            window.vectorSource.clear();
+            delete window.newHighlight.custom_place_id;
+            $('#save_annotation').attr('disabled', 'true');
+        }
+    });
+}
 function reloadHighlights(context_id) {
+    $('#doc_content .tk').removeClass('highlighted');
     return $.ajax({
         url: 'load_annotation',
         type: 'post',
@@ -268,45 +316,53 @@ function reloadHighlights(context_id) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
             }
-        },
-        error: function(xhr) {
-            if (xhr.status == 403) {
-                Utils.notify('error', xhr.responseText);
-            }
         }
     });
 }
 
 function reloadSavedShapes() {
     $.ajax({
-
+        url: 'load_custom_shapes',
+        type: 'post',
+        success: function(xhr) {
+            window.customShapes = {};
+            var options = '<option value="-1">(Custom shape)</option>';
+            for (var i = 0; i < xhr.places.length; i ++) {
+                var shape = xhr.places[i];
+                window.customShapes[shape.id] = shape;
+                options += '<option value="' + shape.id + '">' +
+                        shape.place_name + '</option>';
+            }
+            $('#custom_shapes').html(options);
+        }
     });
 }
 
 function highlight(highlight) {
     var $context = $('#doc_content');
-    // loop over all words in the highlight
+    var className;
+    if ('place_id' in highlight) {
+        className = 'p'; // 'place'
+    } else {
+        className = 'cp'; // 'custom place'
+    }
     for (var i = highlight.start; i <= highlight.end; i++) {
         var $token = $context.find('.tk[data-id="' + i + '"]');
         if (typeof $token.attr('data-hl-id') == 'undefined') { // new highlight for this word
-            $token.addClass('p').attr('data-hl-id', highlight.id);
+            $token.addClass(className).attr('data-hl-id', highlight.id);
         } else {
             var curr_id = $token.attr('data-hl-id'); // append highlight for this word
-            $token.addClass('p').attr('data-hl-id', curr_id + ' ' + highlight.id);
+            $token.addClass(className).attr('data-hl-id', curr_id + ' ' + highlight.id);
         }
     }
 }
 
-function showDetail(place_id, geotext) {
+function showDetail(geotext, shapetype) {
     window.vectorSource.clear();
-    if (typeof geotext == 'undefined') { // when clicking search result
-        window.geotext = window.searchResults[place_id].geotext;
-    } else { // when clicking annotated text
-        window.geotext = geotext;
-    }
+    window.geotext = geotext;
 
     var format = new ol.format.WKT();
-    var feature = format.readFeature(window.geotext);
+    var feature = format.readFeature(geotext);
     feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
     window.vectorSource.addFeature(feature);
     window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize());
@@ -317,6 +373,7 @@ function initmap() {
     window.drawSource = new ol.source.Vector();
     window.map = new ol.Map({
         target: 'map',
+        interactions: ol.interaction.defaults({doubleClickZoom: false}),
         layers: [
             new ol.layer.Tile({
                 source: new ol.source.OSM()

@@ -21,6 +21,7 @@
                 left:0;
                 overflow: auto;
                 font-size:1.2em;
+                padding: 1em 2em;
             }
             #search_results {
                 position: absolute;
@@ -41,6 +42,37 @@
                 top:11em;
                 left:1em;
             }
+            #annotation_overlay {
+                position: absolute;
+                z-index:100;
+                top:0;
+                right: 0;
+                left: 0;
+                bottom: 0;
+                background-color: #000;
+                opacity: 0.5;
+                color: #ddd;
+                padding-top: 50%;
+                text-align: center;
+                font-size: 2em;
+                font-weight: bold;
+            }
+            #searcher_overlay {
+                position: absolute;
+                z-index: 101;
+                top: 0;
+                right: 0;
+                left: 0;
+                height:5.5em;
+                background-color: #000;
+                opacity: 0.5;
+                color: #ddd;
+                padding-top: 2.5em;
+                text-align: center;
+                font-size: 2em;
+                font-weight: bold;
+                display: none;
+            }
             #map_toolbar {
                 position: absolute;
                 top: 9em;
@@ -60,6 +92,10 @@
                 text-decoration: none;
             }
             .tk.p {
+                background-color: #68c6ff;
+                cursor: pointer;
+            }
+            .tk.cp {
                 background-color: #FF66CC;
                 cursor: pointer;
             }
@@ -76,27 +112,30 @@
             {% endfor %}
         </div>
         <div class="ui grid pusher" style="height:100%">
-            <div class="eight wide column" style="height:100%">
+            <div class="eight wide column" style="height:100%;border-right:2px #585858 solid">
                 <a id="show_article_list" class="ui label"><< Select an article</a>
                 <span id="article_title"></span>
-                <div class="ui segment noselect" id="doc_content">
+                <div class="noselect" id="doc_content">
                     <div class="ui info message">Please select an article.</div>
                 </div>
             </div>
             <div class="eight wide column">
+                <div id="annotation_overlay" class="noselect">Please first highlight some text</div>
+                <div id="searcher_overlay" class="noselect">Double click on the map to finish drawing</div>
                 <div id="search_area">
-                    <input id="search_text" type="text" size="20" placeholder="">
-                    <button id="search_nominatim">Search Nominatim</button>
-                    <input id="place_id" type="text" size="6" placeholder="ID" disabled>
-                    <button id="save_annotation">Save</button>
+                    <input id="search_text" type="text" size="14" placeholder="">
+                    <button id="search_nominatim">Search local</button>
+                    <button id="search_global">Search global</button>
+                    <span>or select a</span>
+                    <select id="custom_shapes"></select>
+                    <input id="place_id" type="hidden" placeholder="ID">
+                    <button id="save_annotation" disabled>Save</button>
                 </div>
                 <div id="search_results"></div>
                 <div id="map_toolbar">
                     <button id="draw_line">Draw line</button>
                     <button id="draw_polygon">Draw polygon</button>
-                    <button id="save_shape" disabled>Save shape</button>
-                    <span>Saved shapes</span>
-                    <select id="custom_shapes"></select>
+                    <button id="save_shape" disabled>Save shape and annotation</button>
                 </div>
                 <div id="map"></div>
             </div>
