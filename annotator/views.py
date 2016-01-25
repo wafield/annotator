@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from HTMLParser import HTMLParser, HTMLParseError
 from django.utils import timezone
 
@@ -11,22 +12,32 @@ from models import *
 def home(request):
     context = {}
     context['articles'] = []
-    for art in Article.objects.all():
+    for art in Article.objects.filter(article_type='Local News').order_by('created_at'):
+        if art.created_at:
+            date = art.created_at.strftime('%m/%d/%Y')
+        else:
+            date = 'Unknown date'
         context['articles'].append({
             'id': art.id,
-            'subject': art.subject
+            'subject': art.subject,
+            'date': date
         })
     return render(request, 'index.html', context)
 
 def get_doc(request):
     i = request.REQUEST.get('id')
     art = Article.objects.get(id=i)
-    content = '<p>' + '</p><p>'.join(art.get_sentences()) + '</p>'
+    content = '<p>' + '</p><p>'.join(art.get_sentences_annotated()) + '</p>'
     content = segment_text(content)
+    if art.created_at:
+        date = art.created_at.strftime('%m/%d/%Y')
+    else:
+        date = 'Unknown date'
     response = {
         'title': art.subject,
         'content': content,
-        'id': art.id
+        'id': art.id,
+        'date': date
     }
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
@@ -111,11 +122,14 @@ class Segmenter(HTMLParser):
 
 
     def handle_starttag(self, d, attr):
-        tag = ['<', d]
-        for a in attr:
-            tag.extend([' ', a[0], '="', a[1], '"'])
-        tag.append('>')
-        self.fed.append(''.join(tag))
+        if d == 'span':
+            self.fed.append('<span class="geotag">')
+        else:
+            tag = ['<', d]
+            for a in attr:
+                tag.extend([' ', a[0], '="', a[1], '"'])
+            tag.append('>')
+            self.fed.append(''.join(tag))
 
     def handle_endtag(self, d):
         self.fed.append('</' + d + '>')

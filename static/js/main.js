@@ -28,7 +28,7 @@ $(document).ready(function() {
                 'id': id
             },
             success: function(xhr) {
-                $('#article_title').text('[' + xhr.id + '] ' + xhr.title);
+                $('#article_title').text('[' + xhr.id + '] ' + xhr.title + '(' + xhr.date + ')');
                 var sentences = xhr.content;
                 $('#doc_content')
                     .html(sentences)

@@ -17,6 +17,9 @@ class Article(models.Model):
     def get_sentences(self):
         return nltk.sent_tokenize(self.content)
 
+    def get_sentences_annotated(self):
+        return nltk.sent_tokenize(self.content_with_tag)
+
 
 class CustomPlace(models.Model):
     shape = models.TextField(null=True, blank=True)

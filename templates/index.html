@@ -33,6 +33,9 @@
                 font-size:1.2em;
                 padding: 1em 2em;
             }
+			#doc_content span.geotag {
+				border-bottom: #333 dotted 3px;
+			}
             #search_results {
                 position: absolute;
                 top:3em;
@@ -118,7 +121,7 @@
         <div class="ui sidebar inverted vertical menu">
             <div class="item">Articles</div>
             {% for article in articles %}
-                 <a class="item article title" data-id="{{ article.id }}">[{{ article.id }}] {{ article.subject }}</a>
+                 <a class="item article title" data-id="{{ article.id }}">[{{ article.id }}] {{ article.subject }} ({{ article.date }})</a>
             {% endfor %}
         </div>
         <div class="ui grid pusher" style="height:100%">
