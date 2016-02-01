@@ -22,10 +22,12 @@ $(document).ready(function() {
     });
     $('body').on('click', '#show_activities', function() {
         $('#doc_content').css('height', '50%');
+        $(this).text('loading...');
         $.ajax({
             url: 'activities',
             success: function(xhr) {
-                $('#activities').html(xhr.html);
+                $('#show_activities').text('Refresh activities');
+                $('#activities').html(xhr.html).show();
                 $('#activity_table').DataTable({
                     'ordering': false,
                     'scrollY': $('#activities').height() - 80,
