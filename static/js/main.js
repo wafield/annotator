@@ -23,11 +23,13 @@ $(document).ready(function() {
     $('body').on('click', '#show_activities', function() {
         $('#doc_content').css('height', '50%');
         $(this).text('loading...');
+        $('#activities').show()
+            .html('<div class="ui active centered inline loader"></div>');
         $.ajax({
             url: 'activities',
             success: function(xhr) {
                 $('#show_activities').text('Refresh activities');
-                $('#activities').html(xhr.html).show();
+                $('#activities').html(xhr.html);
                 $('#activity_table').DataTable({
                     'ordering': false,
                     'scrollY': $('#activities').height() - 80,
