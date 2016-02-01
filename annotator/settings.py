@@ -18,6 +18,15 @@ DATABASES = {
         'PASSWORD': 'asdf1234',
         'HOST': '130.203.136.141',                      # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
         'PORT': '5432',                      # Set to empty string for default.
+    },
+    'lrs': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': 'nominatim',                      # Or path to database file if using sqlite3.
+        # The following settings are not used with sqlite3:
+        'USER': 'postgres',
+        'PASSWORD': '',
+        'HOST': '130.203.139.102',                      # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
+        'PORT': '5432',                      # Set to empty string for default.
     }
 }
 
@@ -105,6 +114,8 @@ MIDDLEWARE_CLASSES = (
     # Uncomment the next line for simple clickjacking protection:
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
+
+DATABASE_ROUTERS = ['annotator.db_router.SearchLogRouter']
 
 ROOT_URLCONF = 'annotator.urls'
 

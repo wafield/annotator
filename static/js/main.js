@@ -20,22 +20,47 @@ $(document).ready(function() {
             .sidebar('setting', 'dimPage', 'false')
             .sidebar('toggle');
     });
+    $('body').on('click', '#show_activities', function() {
+        $('#doc_content').css('height', '50%');
+        $.ajax({
+            url: 'activities',
+            success: function(xhr) {
+                $('#activities').html(xhr.html);
+                $('#activity_table').DataTable({
+                    'ordering': false,
+                    'scrollY': $('#activities').height() - 80,
+                    'columns': [
+                        null,
+                        {'searchable': false},
+                        null
+                    ]
+                });
+            }
+        })
+    }).on('click', '.show_shape', function() {
+        var geotext = this.getAttribute('data-geotext');
+        showDetail(geotext);
+    }).on('click', '.annotation_src', function() {
+        var id = this.getAttribute('data-source-id');
+        var start = this.getAttribute('data-start');
+        var end = this.getAttribute('data-end');
+        if (id == $('#doc_content').attr('data-article-id')) {
+            highlightAndJump({
+                start: start,
+                end: end
+            });
+        } else {
+            loadDocument(id).done(function() {
+                highlightAndJump({
+                    start: start,
+                    end: end
+                });
+            });
+        }
+    });
     $('body').on('click', '.article.title', function() {
         var id = this.getAttribute('data-id');
-        $.ajax({
-            url: 'doc',
-            data: {
-                'id': id
-            },
-            success: function(xhr) {
-                $('#article_title').text('[' + xhr.id + '] ' + xhr.title + '(' + xhr.date + ')');
-                var sentences = xhr.content;
-                $('#doc_content')
-                    .html(sentences)
-                    .attr("data-article-id", id);
-                reloadHighlights(id);
-            }
-        });
+        loadDocument(id);
     });
     $('body').on('mouseup', '.doc_content', function(e) {
         var selected = getSelectionText();
@@ -332,7 +357,22 @@ function reloadHighlights(context_id) {
         }
     });
 }
-
+function loadDocument(id) {
+    return $.ajax({
+        url: 'doc',
+        data: {
+            'id': id
+        },
+        success: function(xhr) {
+            $('#article_title').text('[' + xhr.id + '] ' + xhr.title + '(' + xhr.date + ')');
+            var sentences = xhr.content;
+            $('#doc_content')
+                .html(sentences)
+                .attr("data-article-id", id);
+            reloadHighlights(id);
+        }
+    });
+}
 function reloadSavedShapes() {
     $.ajax({
         url: 'load_custom_shapes',
@@ -368,6 +408,20 @@ function highlight(highlight) {
             $token.addClass(className).attr('data-hl-id', curr_id + ' ' + highlight.id);
         }
     }
+}
+
+function highlightAndJump(highlight) {
+    var $context = $('#doc_content');
+    $('#doc_content .tk.highlighted').removeClass('highlighted');
+    var $token;
+    for (var i = highlight.start; i <= highlight.end; i++) {
+        $token = $context.find('.tk[data-id="' + i + '"]');
+        $token.addClass('highlighted');
+    }
+    // scroll to token
+    var elOffset = $token.offset().top + $context.scrollTop();
+    var windowHeight = $context.height();
+    $context.scrollTop(elOffset - (windowHeight / 2));
 }
 
 function showDetail(geotext, shapetype) {

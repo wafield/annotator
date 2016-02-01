@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from django.shortcuts import render, render_to_response
 from django.http import HttpResponse
+from django.template.loader import render_to_string
 
 from models import *
 
@@ -99,6 +100,26 @@ def load_custom_shapes(request):
             'geotext': place.shape,
         })
     return HttpResponse(json.dumps(response), mimetype='application/json')
+
+def load_activities(request):
+    annotations = Annotation.objects.all()
+    newshape = CustomPlace.objects.all()
+    searchlog = SearchLog.objects.exclude(ipaddress='130.203.151.199').exclude(query='')
+    activities = []
+    activities += [item.toActivity() for item in annotations]
+    activities += [item.toActivity() for item in newshape]
+    lastitem = {'query': '', 'ip': ''}
+    for item in searchlog:
+        if item.query == lastitem['query'] and item.ipaddress == lastitem['ip']:
+            continue
+        lastitem = {'query': item.query, 'ip': item.ipaddress}
+        activities.append(item.toActivity())
+    activities = sorted(activities, key=lambda x:x['time'], reverse=True)
+    return HttpResponse(json.dumps({
+        'html': render_to_string("activities.html", {'activities': activities})
+    }), mimetype='application/json')
+
+
 
 def segment_text(content):
     s = Segmenter()

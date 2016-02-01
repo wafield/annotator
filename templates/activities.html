@@ -1,0 +1,39 @@
+<table id="activity_table" class="compact stripe">
+	<thead>
+		<tr>
+			<th>Type</th>
+			<th>Time</th>
+			<th>Other info</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for activity in activities %}
+		<tr>
+			{% if activity.type == 'annotation' %}
+			<td>Annotation</td>
+			<td>{{ activity.time|date:"m/d H:i:s" }}</td>
+			<td>
+				<a class="annotation_src" data-source-id="{{ activity.source_id }}" data-start="{{ activity.start }}" data-end="{{ activity.end }}">Source</a>
+				| <a class="show_shape" data-geotext="{{ activity.shape }}">Show shape</a>
+				| {{ activity.place_type }}
+				| Search text: {{ activity.search_text }}
+			</td>
+			{% elif activity.type == 'search_local' %}
+			<td>Search local</td>
+			<td>{{ activity.time|date:"m/d H:i:s" }}</td>
+			<td>
+				Search text: {{ activity.search_text }} |
+				IP: {{ activity.ip }}
+			</td>
+			{% elif activity.type == 'newplace' %}
+			<td>Custom place</td>
+			<td>{{ activity.time|date:"m/d H:i:s" }}</td>
+			<td>
+				Place name: {{ activity.place_name }} |
+				<a class="show_shape" data-geotext="{{ activity.shape }}">Show shape</a>
+			</td>
+			{% endif %}
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
