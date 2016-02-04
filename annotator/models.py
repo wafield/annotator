@@ -55,6 +55,7 @@ class Annotation(models.Model):
         else:
             place_type = 'Custom'
         return {
+            'id': self.id,
             'time': self.created_at,
             'type': 'annotation',
             'source_id': self.source.id,

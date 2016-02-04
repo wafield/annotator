@@ -101,6 +101,29 @@ def load_custom_shapes(request):
         })
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
+def search_annotation(request):
+    searchText = request.REQUEST.get('text')
+    anno_matches = Annotation.objects.filter(text__iexact=searchText, place_id__isnull=False)
+    custom_matches = CustomPlace.objects.filter(place_name__iexact=searchText)
+    results_anno = []
+    results_cp = []
+    for anno in anno_matches:
+        results_anno.append({
+            'place_id': anno.place_id,
+            'shape': anno.shape,
+            'name': anno.text
+        })
+    for cp in custom_matches:
+        results_cp.append({
+            'cp_id': cp.id,
+            'shape': cp.shape,
+            'name': cp.place_name
+        })
+    return HttpResponse(json.dumps({
+        'annotation_matches': results_anno,
+        'customplace_matches': results_cp
+    }), mimetype='application/json')
+
 def load_activities(request):
     annotations = Annotation.objects.all()
     newshape = CustomPlace.objects.all()
@@ -119,7 +142,10 @@ def load_activities(request):
         'html': render_to_string("activities.html", {'activities': activities})
     }), mimetype='application/json')
 
-
+def delete_annotation(request):
+    id = request.REQUEST.get('id')
+    Annotation.objects.get(id=id).delete()
+    return HttpResponse(json.dumps({}), mimetype='application/json')
 
 def segment_text(content):
     s = Segmenter()

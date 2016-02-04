@@ -4,6 +4,7 @@
 			<th>Type</th>
 			<th>Time</th>
 			<th>Other info</th>
+            <th>X</th>
 		</tr>
 	</thead>
 	<tbody>
@@ -18,6 +19,7 @@
 				| {{ activity.place_type }}
 				| Search text: {{ activity.search_text }}
 			</td>
+            <td><a class="delete_annotation" data-id="{{ activity.id }}">X</a></td>
 			{% elif activity.type == 'search_local' %}
 			<td>Search local</td>
 			<td>{{ activity.time|date:"m/d H:i:s" }}</td>
@@ -25,6 +27,7 @@
 				Search text: {{ activity.search_text }} |
 				IP: {{ activity.ip }}
 			</td>
+            <td></td>
 			{% elif activity.type == 'newplace' %}
 			<td>Custom place</td>
 			<td>{{ activity.time|date:"m/d H:i:s" }}</td>
@@ -32,6 +35,7 @@
 				Place name: {{ activity.place_name }} |
 				<a class="show_shape" data-geotext="{{ activity.shape }}">Show shape</a>
 			</td>
+            <td></td>
 			{% endif %}
 		</tr>
 		{% endfor %}

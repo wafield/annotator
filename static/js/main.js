@@ -30,13 +30,14 @@ $(document).ready(function() {
             success: function(xhr) {
                 $('#show_activities').text('Refresh activities');
                 $('#activities').html(xhr.html);
-                $('#activity_table').DataTable({
+                window.activityTable = $('#activity_table').DataTable({
                     'ordering': false,
                     'scrollY': $('#activities').height() - 80,
                     'columns': [
                         null,
                         {'searchable': false},
-                        null
+                        null,
+                        {'searchable': false}
                     ]
                 });
             }
@@ -61,6 +62,20 @@ $(document).ready(function() {
                 });
             });
         }
+    }).on('click', '.delete_annotation', function() {
+        var id = this.getAttribute('data-id');
+        var that = this;
+        $.ajax({
+            url: 'delete_annotation',
+            type: 'post',
+            data: {id: id},
+            success: function() {
+                window.activityTable
+                    .row($(that).parents('tr'))
+                    .remove()
+                    .draw();
+            }
+        })
     });
     $('body').on('click', '.article.title', function() {
         var id = this.getAttribute('data-id');
@@ -76,9 +91,40 @@ $(document).ready(function() {
     });
     $('body').on('click', '#search_nominatim', function(e) {
         e.preventDefault();
-        $('#search_results').html('Searching...');
+        $('#nominatim_results').html('Searching nominatim...');
         var text = $('#search_text').val();
         var searchtext = text.trim().replace(' ', '+');
+
+        $.ajax({
+            url: 'search_annotation',
+            data: {text: text.trim()},
+            type: 'post',
+            success: function(xhr) {
+                window.matchedAnnotations = {};
+                window.matchedCustomplaces = {};
+                var html = '';
+                if (xhr.annotation_matches.length != 0) {
+                    html = 'Found in previous annotations:<div class="ui ordered list">';
+                    for (var i = 0; i < xhr.annotation_matches.length; i++) {
+                        html += '<a class="previous_anno item" data-place-id="' + xhr.annotation_matches[i].place_id + '">' +
+                            xhr.annotation_matches[i].name + '</a>';
+                        window.matchedAnnotations[xhr.annotation_matches[i].place_id] = xhr.annotation_matches[i];
+                    }
+                    html += '</div>';
+                }
+                if (xhr.customplace_matches.length != 0) {
+                    html = 'Found in custom places:<div class="ui ordered list">';
+                    for (var i = 0; i < xhr.customplace_matches.length; i++) {
+                        html += '<a class="previous_cp item" data-cp-id="' + xhr.customplace_matches[i].cp_id + '">' +
+                            xhr.customplace_matches[i].name + '</a>';
+                        window.matchedCustomplaces[xhr.customplace_matches[i].cp_id] = xhr.customplace_matches[i];
+                    }
+                    html += '</div>';
+                }
+                $('#previous_annotations').html(html);
+            }
+        });
+
         var results = [];
         $.ajax({
             url: '//gir.ist.psu.edu/nominatim/search.php',
@@ -120,7 +166,7 @@ $(document).ready(function() {
         });
     }).on('click', '#search_global', function(e) {
         e.preventDefault();
-        $('#search_results').html('Searching...');
+        $('#nominatim_results').html('Searching nominatim...');
         var text = $('#search_text').val();
         var searchtext = text.trim().replace(' ', '+');
         $.ajax({
@@ -210,7 +256,7 @@ $(document).ready(function() {
 
     function showResults(results) {
         window.searchResults = {};
-        var html = '<div class="ui ordered list">';
+        var html = 'Nominatim results:<div class="ui ordered list">';
         if (results.length == 0) html += '<div class="item">No result</div>';
         results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
         for (var i =0; i < results.length; i ++) {
@@ -219,7 +265,7 @@ $(document).ready(function() {
             window.searchResults[results[i].place_id] = results[i];
         }
         html += '</div>';
-        $('#search_results').html(html);
+        $('#nominatim_results').html(html);
     }
 
     $('body').on('click', '.place.item', function() {
@@ -229,6 +275,20 @@ $(document).ready(function() {
         showDetail(geotext);
         window.newHighlight.place_id = place_id;
         delete window.newHighlight.custom_place_id;
+        $('#save_annotation').removeAttr('disabled');
+    }).on('click', '.previous_anno.item', function() {
+        $('#custom_shapes').val('-1');
+        var place_id = this.getAttribute('data-place-id');
+        var geotext = window.matchedAnnotations[place_id].shape;
+        showDetail(geotext);
+        window.newHighlight.place_id = place_id;
+        delete window.newHighlight.custom_place_id;
+        $('#save_annotation').removeAttr('disabled');
+    }).on('click', '.previous_cp.item', function() {
+        var custom_place_id = this.getAttribute('data-cp-id');
+        showDetail(window.matchedCustomplaces[custom_place_id].shape, 'custom');
+        window.newHighlight.custom_place_id = custom_place_id;
+        delete window.newHighlight.place_id;
         $('#save_annotation').removeAttr('disabled');
     });
     $('body').on('click', '#save_annotation', function(e) {
