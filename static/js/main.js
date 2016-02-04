@@ -75,7 +75,7 @@ $(document).ready(function() {
                 window.activityTable
                     .row($(that).parents('tr'))
                     .remove()
-                    .draw();
+                    .draw(false);
             }
         })
     });
@@ -90,7 +90,7 @@ $(document).ready(function() {
             },
             type: 'post'
         }) ;
-    }).on('change', 'reference_code', function() {
+    }).on('change', '.reference_code', function() {
         var that = this;
         $.ajax({
             url: 'change_code',
