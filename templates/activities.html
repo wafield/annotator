@@ -48,16 +48,16 @@
             </select></td>
             <td><select size="1" class="reference_code" data-id="{{ activity.id }}">
                 <option value="-1"{% if not activity.ref_code %} selected="selected"{% endif %}>(none)</option>
-                <option value="L1"{% if activity.ref_code == '' %} selected="selected"{% endif %}>L1 City</option>
-                <option value="L2"{% if activity.ref_code == '' %} selected="selected"{% endif %}>L2
+                <option value="L1"{% if activity.ref_code == 'L1' %} selected="selected"{% endif %}>L1 City</option>
+                <option value="L2"{% if activity.ref_code == 'L2' %} selected="selected"{% endif %}>L2
                     Township/Neighborhood</option>
-                <option value="L3"{% if activity.ref_code == '' %} selected="selected"{% endif %}>L3
+                <option value="L3"{% if activity.ref_code == 'L3' %} selected="selected"{% endif %}>L3
                     Business/Organization</option>
-                <option value="L4"{% if activity.ref_code == '' %} selected="selected"{% endif %}>L4 Street address</option>
-                <option value="G1"{% if activity.ref_code == '' %} selected="selected"{% endif %}>G1 City</option>
-                <option value="G2"{% if activity.ref_code == '' %} selected="selected"{% endif %}>G2 Township/Neighborhood</option>
-                <option value="G3"{% if activity.ref_code == '' %} selected="selected"{% endif %}>G3 Business/Organization</option>
-                <option value="G4"{% if activity.ref_code == '' %} selected="selected"{% endif %}>G4 Street address</option>
+                <option value="L4"{% if activity.ref_code == 'L4' %} selected="selected"{% endif %}>L4 Street address</option>
+                <option value="G1"{% if activity.ref_code == 'G1' %} selected="selected"{% endif %}>G1 City</option>
+                <option value="G2"{% if activity.ref_code == 'G2' %} selected="selected"{% endif %}>G2 Township/Neighborhood</option>
+                <option value="G3"{% if activity.ref_code == 'G3' %} selected="selected"{% endif %}>G3 Business/Organization</option>
+                <option value="G4"{% if activity.ref_code == 'G4' %} selected="selected"{% endif %}>G4 Street address</option>
             </select></td>
             <td><a class="delete_annotation" data-id="{{ activity.id }}">X</a></td>
 			{% elif activity.type == 'search_local' %}
