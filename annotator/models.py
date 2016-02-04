@@ -46,6 +46,9 @@ class Annotation(models.Model):
     end = models.IntegerField(null=True, blank=True)
     shape = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
+    res_code = models.TextField(null=True, blank=True)
+    ref_code = models.TextField(null=True, blank=True)
+
     class Meta:
         db_table = 'annotation'
     def toActivity(self):
@@ -63,7 +66,9 @@ class Annotation(models.Model):
             'end': self.end,
             'shape': self.shape,
             'search_text': self.text,
-            'place_type': place_type
+            'place_type': place_type,
+            'res_code': self.res_code,
+            'ref_code': self.ref_code
         }
 
 class SearchLog(models.Model):

@@ -147,6 +147,19 @@ def delete_annotation(request):
     Annotation.objects.get(id=id).delete()
     return HttpResponse(json.dumps({}), mimetype='application/json')
 
+def change_code(request):
+    id = request.REQUEST.get('id')
+    code_type = request.REQUEST.get('code_type')
+    code = request.REQUEST.get('code')
+    annotation = Annotation.objects.get(id=id)
+    if code_type == 'resolve':
+        annotation.res_code = code
+        annotation.save()
+    elif code_type == 'reference':
+        annotation.ref_code = code
+        annotation.save()
+    return HttpResponse(json.dumps({}), mimetype='application/json')
+
 def segment_text(content):
     s = Segmenter()
     try:

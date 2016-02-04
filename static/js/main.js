@@ -37,6 +37,8 @@ $(document).ready(function() {
                         null,
                         {'searchable': false},
                         null,
+                        {'searchable': false},
+                        {'searchable': false},
                         {'searchable': false}
                     ]
                 });
@@ -76,6 +78,29 @@ $(document).ready(function() {
                     .draw();
             }
         })
+    });
+    $('#activities').on('change', '.resolve_code', function() {
+        var that = this;
+        $.ajax({
+            url: 'change_code',
+            data: {
+                'id': that.getAttribute('data-id'),
+                'code': $(that).find(':selected').val(),
+                'code_type': 'resolve'
+            },
+            type: 'post'
+        }) ;
+    }).on('change', 'reference_code', function() {
+        var that = this;
+        $.ajax({
+            url: 'change_code',
+            data: {
+                'id': that.getAttribute('data-id'),
+                'code': $(that).find(':selected').val(),
+                'code_type': 'reference'
+            },
+            type: 'post'
+        });
     });
     $('body').on('click', '.article.title', function() {
         var id = this.getAttribute('data-id');
