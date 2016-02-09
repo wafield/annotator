@@ -142,26 +142,23 @@ def load_custom_shapes(request):
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
 def search_annotation(request):
-    searchText = request.REQUEST.get('text')
-    anno_matches = Annotation.objects.filter(text__iexact=searchText, place_id__isnull=False)
-    custom_matches = CustomPlace.objects.filter(place_name__iexact=searchText)
-    results_anno = []
-    results_cp = []
-    for anno in anno_matches:
-        results_anno.append({
-            'place_id': anno.place_id,
-            'shape': anno.shape,
-            'name': anno.text
-        })
-    for cp in custom_matches:
-        results_cp.append({
-            'cp_id': cp.id,
-            'shape': cp.shape,
-            'name': cp.place_name
-        })
+    searchText = request.REQUEST.get('text').replace(' ', '_')
+    cached = cache.get(searchText)
+    res = []
+    if cached:
+        for key in cached:
+            if cached[key]['type'] == 'nominatim':
+                shape = '' # TODO access shape from lrs database
+            else:
+                shape = ''
+            res.append({
+                'id': key,
+                'freq': cached[key]['freq'],
+                'type': cached[key]['type'],
+                'shape': shape
+            })
     return HttpResponse(json.dumps({
-        'annotation_matches': results_anno,
-        'customplace_matches': results_cp
+        'annotation_matches': res
     }), mimetype='application/json')
 
 def load_activities(request):

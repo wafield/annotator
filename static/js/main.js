@@ -113,8 +113,7 @@ $(document).ready(function() {
             return;
         };
         $('#search_text').val(selected);
-		var searchtext = selected.trim().replace(' ', '+');
-		getRecommendation(searchtext);
+		getRecommendation(selected);
     });
     $('body').on('click', '#search_nominatim', function(e) {
         e.preventDefault();
