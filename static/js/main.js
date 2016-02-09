@@ -113,6 +113,8 @@ $(document).ready(function() {
             return;
         };
         $('#search_text').val(selected);
+		var searchtext = selected.trim().replace(' ', '+');
+		getRecommendation(searchtext);
     });
     $('body').on('click', '#search_nominatim', function(e) {
         e.preventDefault();
@@ -120,35 +122,7 @@ $(document).ready(function() {
         var text = $('#search_text').val();
         var searchtext = text.trim().replace(' ', '+');
 
-        $.ajax({
-            url: 'search_annotation',
-            data: {text: text.trim()},
-            type: 'post',
-            success: function(xhr) {
-                window.matchedAnnotations = {};
-                window.matchedCustomplaces = {};
-                var html = '';
-                if (xhr.annotation_matches.length != 0) {
-                    html = 'Found in previous annotations:<div class="ui ordered list">';
-                    for (var i = 0; i < xhr.annotation_matches.length; i++) {
-                        html += '<a class="previous_anno item" data-place-id="' + xhr.annotation_matches[i].place_id + '">' +
-                            xhr.annotation_matches[i].name + '</a>';
-                        window.matchedAnnotations[xhr.annotation_matches[i].place_id] = xhr.annotation_matches[i];
-                    }
-                    html += '</div>';
-                }
-                if (xhr.customplace_matches.length != 0) {
-                    html = 'Found in custom places:<div class="ui ordered list">';
-                    for (var i = 0; i < xhr.customplace_matches.length; i++) {
-                        html += '<a class="previous_cp item" data-cp-id="' + xhr.customplace_matches[i].cp_id + '">' +
-                            xhr.customplace_matches[i].name + '</a>';
-                        window.matchedCustomplaces[xhr.customplace_matches[i].cp_id] = xhr.customplace_matches[i];
-                    }
-                    html += '</div>';
-                }
-                $('#previous_annotations').html(html);
-            }
-        });
+
 
         var results = [];
         $.ajax({
@@ -347,6 +321,37 @@ $(document).ready(function() {
     });
 });
 
+function getRecommendation(text) {
+	$.ajax({
+		url: 'search_annotation',
+		data: {text: text.trim()},
+		type: 'post',
+		success: function(xhr) {
+			window.matchedAnnotations = {};
+			window.matchedCustomplaces = {};
+			var html = '';
+			if (xhr.annotation_matches.length != 0) {
+				html = 'Found in previous annotations:<div class="ui ordered list">';
+				for (var i = 0; i < xhr.annotation_matches.length; i++) {
+					html += '<a class="previous_anno item" data-place-id="' + xhr.annotation_matches[i].place_id + '">' +
+						xhr.annotation_matches[i].name + '</a>';
+					window.matchedAnnotations[xhr.annotation_matches[i].place_id] = xhr.annotation_matches[i];
+				}
+				html += '</div>';
+			}
+			if (xhr.customplace_matches.length != 0) {
+				html = 'Found in custom places:<div class="ui ordered list">';
+				for (var i = 0; i < xhr.customplace_matches.length; i++) {
+					html += '<a class="previous_cp item" data-cp-id="' + xhr.customplace_matches[i].cp_id + '">' +
+						xhr.customplace_matches[i].name + '</a>';
+					window.matchedCustomplaces[xhr.customplace_matches[i].cp_id] = xhr.customplace_matches[i];
+				}
+				html += '</div>';
+			}
+			$('#previous_annotations').html(html);
+		}
+	});
+}
 function initAnnotationControls() {
     $('body').on('mousedown', '#doc_content', function (e) {
         if ($(e.target).is('u.tk')) {
@@ -441,8 +446,9 @@ function reloadHighlights(context_id) {
         },
         success: function(xhr) {
 			var format = new ol.format.WKT();
-			var centerX = 0.0;
-			var centerY = 0.0;
+			// initialized as state college center
+			var centerX = -8668290.553265808;
+			var centerY = 4981926.637914396;
             for (var i = 0; i < xhr.highlights.length; i ++) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
@@ -453,8 +459,8 @@ function reloadHighlights(context_id) {
 				centerY += center[1];
             }
 			window.overallCentroid = [
-				centerX / xhr.highlights.length,
-				centerY / xhr.highlights.length
+				centerX / (xhr.highlights.length + 1),
+				centerY / (xhr.highlights.length + 1)
 			];
         }
     });

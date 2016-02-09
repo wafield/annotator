@@ -59,29 +59,34 @@
 			#doc_content span.geotag {
 				border-bottom: #333 dotted 3px;
 			}
-            #search_results {
-                position: absolute;
-                top:6em;
-                height: 7em;
-                overflow: auto;
-				left: 1em;
-				right: 1em;
-            }
             #search_area {
                 position: absolute;
                 left: 1em;
                 display: inline;
+				bottom:50%;
+				top: 1em;
+				right: 0;
             }
 			#search_text {
 				width: 100%;
 				margin: 5px 0;
 			}
+			#search_results {
+				height: auto;
+				overflow: auto;
+			}
+			#map_area {
+				position: absolute;
+				top: 50%;
+				bottom: 0;
+				left: 1em;
+				right: 0;
+			}
+			#map_toolbar {
+			}
             #map {
-                position: absolute;
-                bottom:0;
-                right:2em;
-                top:15.5em;
-                left:1em;
+				width: 100%;
+				height: calc(100% - 2em);
             }
             #annotation_overlay {
                 position: absolute;
@@ -114,13 +119,7 @@
                 font-weight: bold;
                 display: none;
             }
-            #map_toolbar {
-                position: absolute;
-                top: 13.5em;
-                height:2em;
-                right:0;
-                left:1em;
-            }
+
             .noselect {
                 -webkit-touch-callout: none;
                 -webkit-user-select: none;
@@ -167,7 +166,6 @@
             <div class="eight wide column">
                 <div id="annotation_overlay" class="noselect">Please first highlight some text</div>
                 <div id="searcher_overlay" class="noselect">Double click on the map to finish drawing</div>
-                div#
 				<div id="search_area">
                     <input id="search_text" type="text" size="14" placeholder="">
                     <button id="search_nominatim">Search local</button>
@@ -176,17 +174,19 @@
                     <select id="custom_shapes"></select>
                     <input id="place_id" type="hidden" placeholder="ID">
                     <button id="save_annotation" disabled>Save</button>
+					<div id="search_results">
+						<div id="previous_annotations"></div>
+						<div id="nominatim_results"></div>
+					</div>
                 </div>
-                <div id="search_results">
-                    <div id="previous_annotations"></div>
-                    <div id="nominatim_results"></div>
-                </div>
-                <div id="map_toolbar">
-                    <button id="draw_line">Draw line</button>
-                    <button id="draw_polygon">Draw polygon</button>
-                    <button id="save_shape" disabled>Save shape and annotation</button>
-                </div>
-                <div id="map"></div>
+				<div id="map_area">
+					<div id="map_toolbar">
+						<button id="draw_line">Draw line</button>
+						<button id="draw_polygon">Draw polygon</button>
+						<button id="save_shape" disabled>Save shape and annotation</button>
+					</div>
+					<div id="map"></div>
+				</div>
             </div>
         </div>
         <script src="{% static 'js' %}/main.js"></script>
