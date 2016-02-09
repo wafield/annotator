@@ -8,7 +8,9 @@ from annotator.models import *
 # anno = Annotation.objects.filter(ref_code__isnull=False)
 # for cat in ['L1', 'L2', 'L3', 'L4', 'G1', 'G2', 'G3', 'G4']:
 #     print cat, anno.filter(res_code=cat).count()
-anno = Annotation.objects.all()
+anno = Annotation.objects.filter(res_code__isnull=False)
 for an in anno:
-    print '%s|%s|%s' % (an.text, an.res_code, an.ref_code)
-
+    try:
+        print '%s|%s|%s|%s|%s' % (an.text, an.res_code[0], an.res_code[1], an.ref_code[0], an.ref_code[1])
+    except:
+        pass
