@@ -30,6 +30,14 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': '127.0.0.1:11211',
+        'TIMEOUT': None,
+    }
+}
+
 PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 

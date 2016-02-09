@@ -431,6 +431,8 @@ function initAnnotationControls() {
 }
 function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
+	window.highlightsData = {};
+	window.overallCentroid = [];
     return $.ajax({
         url: 'load_annotation',
         type: 'post',
@@ -438,17 +440,28 @@ function reloadHighlights(context_id) {
             context_id: context_id
         },
         success: function(xhr) {
-            window.highlightsData = {};
+			var format = new ol.format.WKT();
+			var centerX = 0.0;
+			var centerY = 0.0;
             for (var i = 0; i < xhr.highlights.length; i ++) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
+				var feature = format.readFeature(xhr.highlights[i].shape);
+				feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+				var center = ol.extent.getCenter(feature.getGeometry().getExtent());
+				centerX += center[0];
+				centerY += center[1];
             }
+			window.overallCentroid = [
+				centerX / xhr.highlights.length,
+				centerY / xhr.highlights.length
+			];
         }
     });
 }
 function loadDocument(id) {
     return $.ajax({
-        url: 'doc',
+        url: 'get_doc',
         data: {
             'id': id
         },

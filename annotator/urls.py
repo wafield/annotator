@@ -9,7 +9,7 @@ import views
 
 urlpatterns = patterns('',
     url(r'^$', views.home),
-    url(r'^doc$', views.get_doc),
+    url(r'^get_doc$', views.get_doc),
     url(r'^new_annotation$', views.new_annotation),
     url(r'^load_annotation$', views.load_annotation),
     url(r'^load_custom_shapes$', views.load_custom_shapes),

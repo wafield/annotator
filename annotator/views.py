@@ -1,14 +1,54 @@
 import json
 import re
-import time
 from HTMLParser import HTMLParser, HTMLParseError
 from django.utils import timezone
 
 from django.shortcuts import render, render_to_response
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.core.cache import cache
 
 from models import *
+
+def indexFreq():
+    print "Building frequency index ..."
+    anno = Annotation.objects.all()
+    tmpCache = {}
+    for an in anno:
+        text = an.text.lower().strip().replace(' ', '_')
+        if len(text) == 0:
+            continue
+        if an.place_id: # from nominatim
+            place_id = an.place_id
+            place_type = 'nominatim'
+        elif an.custom_place:
+            place_id = an.custom_place.id
+            place_type = 'custom'
+        else:
+            continue
+        if text in tmpCache:
+            cached = tmpCache[text]
+            if place_id in cached:
+                cached[place_id]['freq'] += 1
+            else:
+                cached[place_id] = {
+                    'freq': 1,
+                    'type': place_type
+                }
+        else:
+            tmpCache[text] = {
+                place_id: {
+                    'freq': 1,
+                    'type': place_type
+                }
+            }
+
+    cache.clear()
+    for key in tmpCache:
+        cache.set(key, tmpCache[key])
+    print "Frequency index built."
+
+indexFreq()
 
 def home(request):
     context = {}
