@@ -13,7 +13,7 @@ $(document).ready(function() {
 
     initAnnotationControls();
 
-
+	$('#article_dropdown').dropdown();
     $('body').on('click', '#show_article_list', function() {
         $('.ui.sidebar')
             .sidebar('setting', 'dimPage', 'false')
@@ -112,14 +112,14 @@ $(document).ready(function() {
 
     }).on('click', '#search_global', function(e) {
         e.preventDefault();
-        $('#nominatim_results').html('Searching nominatim...');
+        $('#global_results').html('Searching globally...');
         var text = $('#search_text').val();
         var searchtext = text.trim().replace(' ', '+');
         $.ajax({
             url: '//nominatim.openstreetmap.org/search.php',
-            data: 'q=' + searchtext + '&format=json&polygon_text=1',
+            data: 'q=' + searchtext + '&format=json&countrycodes=us&polygon_text=1', // TODO addressdetails=1 for ontology distance
             success: function (xhr) {
-                showResults(xhr);
+                showGlobalResults(xhr);
             }
         });
     });
@@ -197,8 +197,6 @@ $(document).ready(function() {
         $('#searcher_overlay').hide();
     }
 
-
-
     $('body').on('click', '.place.item', function() {
         var place_id = this.getAttribute('data-place-id');
         var geotext = window.searchResults[place_id].geotext;
@@ -255,7 +253,9 @@ function getRecommendation(text) {
 	var previousAnnotation = false;
 
 	$('#previous_annotations').html('');
-	$('#nominatim_results').html('');
+	$('#local_results').html('');
+	$('#global_results').html('');
+	window.searchResults = {};
 	$.ajax({
 		url: 'search_annotation',
 		data: {text: text.trim()},
@@ -281,13 +281,13 @@ function getRecommendation(text) {
 function searchLocal(searchtext) {
 	var searchtext = searchtext.trim().replace(' ', '+');
 	var results = [];
-	$('#nominatim_results').html('Searching nominatim...');
+	$('#local_results').html('Searching locally...');
 	return $.ajax({
 		url: '//gir.ist.psu.edu/nominatim/search.php',
 		data: 'q=' + searchtext + '&format=json&polygon_text=1',
 		success: function(xhr) {
 			if (xhr.length == 0) {
-				showResults(results);
+				showLocalResults(results);
 				return;
 			}
 			results = results.concat(xhr);
@@ -300,7 +300,7 @@ function searchLocal(searchtext) {
 				data: newquery,
 				success: function(xhr) {
 					if (xhr.length == 0) {
-						showResults(results);
+						showLocalResults(results);
 						return;
 					}
 					results = results.concat(xhr);
@@ -313,7 +313,7 @@ function searchLocal(searchtext) {
 						data: newnewquery,
 						success: function(xhr) {
 							results = results.concat(xhr);
-							showResults(results);
+							showLocalResults(results);
 						}
 					});
 				}
@@ -322,18 +322,50 @@ function searchLocal(searchtext) {
 	});
 }
 
-function showResults(results) {
-	window.searchResults = {};
-	var html = 'Nominatim results:<div class="ui ordered list">';
-	if (results.length == 0) html += '<div class="item">No result</div>';
-	results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
-	for (var i =0; i < results.length; i ++) {
-		var shortname = results[i].display_name.replace(/, United States of America$/, '');
-		html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + shortname + ' (' + results[i].type + ')</a>';
-		window.searchResults[results[i].place_id] = results[i];
+function showLocalResults(results) {
+	if (results.length > 0) {
+		var wgs84Sphere = new ol.Sphere(6378137);
+		var html = 'Local results:<div class="ui celled list">';
+		for (var i = 0; i < results.length; i ++) {
+			results[i].distance = wgs84Sphere.haversineDistance(window.overallCentroid, [
+				results[i].lon,
+				results[i].lat
+			]);
+			window.searchResults[results[i].place_id] = results[i];
+		}
+		results.sort(function(a, b) {return (a.distance > b.distance) ? 1 : ((b.distance > a.distance) ? -1 : 0);} );
+		for (var i = 0; i < results.length; i ++) {
+			var shortname = results[i].display_name.replace(/, United States of America$/, '');
+			var distance = results[i].distance / 1609.34;
+			distance = distance.toPrecision(3);
+			html += '<a class="place item" data-place-id="' + results[i].place_id + '">' +
+				'<span class="ui label">' + distance + ' mi</span>' +
+				shortname + ' (' +
+				results[i].type + ')</a>';
+		}
+		html += '</div>';
+		$('#local_results').html(html);
+	} else {
+		$('#local_results').html('No local results.');
 	}
-	html += '</div>';
-	$('#nominatim_results').html(html);
+
+}
+
+function showGlobalResults(results) {
+	if (results.length > 0) {
+		var html = 'Global results:<div class="ui celled list">';
+		results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
+		for (var i =0; i < results.length; i ++) {
+			var shortname = results[i].display_name.replace(/, United States of America$/, '');
+			html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + shortname + ' (' + results[i].type + ')</a>';
+			window.searchResults[results[i].place_id] = results[i];
+		}
+		html += '</div>';
+		$('#global_results').html(html);
+	} else {
+		$('#global_results').html('No global results.');
+	}
+
 }
 
 function initAnnotationControls() {
@@ -407,7 +439,9 @@ function initAnnotationControls() {
 function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
 	window.highlightsData = {};
-	window.overallCentroid = [];
+	window.overallCentroid = [-77.864398, 40.792031];
+
+	var wgs84Sphere = new ol.Sphere(6378137);
     return $.ajax({
         url: 'load_annotation',
         type: 'post',
@@ -417,21 +451,34 @@ function reloadHighlights(context_id) {
         success: function(xhr) {
 			var format = new ol.format.WKT();
 			// initialized as state college center
-			var centerX = -8668290.553265808;
-			var centerY = 4981926.637914396;
+			var centerX = -77.864398;
+			var centerY = 40.792031;
+			var count = 1;
             for (var i = 0; i < xhr.highlights.length; i ++) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
 				var feature = format.readFeature(xhr.highlights[i].shape);
-				feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
 				var center = ol.extent.getCenter(feature.getGeometry().getExtent());
-				centerX += center[0];
-				centerY += center[1];
+				if (wgs84Sphere.haversineDistance(window.overallCentroid, [
+						center[0],
+						center[1]
+				]) < 5000) {
+					centerX += center[0];
+					centerY += center[1];
+					count ++;
+				}
             }
 			window.overallCentroid = [
-				centerX / (xhr.highlights.length + 1),
-				centerY / (xhr.highlights.length + 1)
+				centerX / count,
+				centerY / count
 			];
+			var centerPoint = new ol.Feature({
+				geometry: new ol.geom.Point(window.overallCentroid),
+			});
+			centerPoint.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+			centerPoint.setStyle(window.vectorStyles.nominatim);
+			window.drawSource.addFeature(centerPoint);
+
         }
     });
 }
@@ -499,7 +546,9 @@ function showDetail(geotext, shapetype) {
         feature.setStyle(window.vectorStyles.nominatim);
     }
     window.vectorSource.addFeature(feature);
-    window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize());
+    window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize(), {
+		maxZoom: 16
+	});
 }
 function initmap() {
 
