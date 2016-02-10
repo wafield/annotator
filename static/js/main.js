@@ -12,7 +12,6 @@ $(document).ready(function() {
     initmap();
 
     initAnnotationControls();
-    reloadSavedShapes();
 
 
     $('body').on('click', '#show_article_list', function() {
@@ -173,16 +172,13 @@ $(document).ready(function() {
                 reloadHighlights(context_id);
                 window.drawSource.clear();
                 $('#save_shape').attr('disabled', 'true');
-                reloadSavedShapes();
                 $('#save_annotation').attr('disabled', 'true');
-                $('#custom_shapes').val('-1');
             }
         })
     });
     $('#draw_line,#draw_polygon').click(function() {
         $('#draw_line,#draw_polygon').attr('disabled', 'true');
         window.drawSource.clear();
-        $('#place_id').val('');
         var value = $(this).is('#draw_line') ? 'LineString' : 'Polygon';
         window.draw = new ol.interaction.Draw({
             source: window.drawSource,
@@ -204,7 +200,6 @@ $(document).ready(function() {
 
 
     $('body').on('click', '.place.item', function() {
-        $('#custom_shapes').val('-1');
         var place_id = this.getAttribute('data-place-id');
         var geotext = window.searchResults[place_id].geotext;
         showDetail(geotext);
@@ -250,7 +245,6 @@ $(document).ready(function() {
                 $('#search_text').val('');
                 reloadHighlights(window.newHighlight.context_id);
                 $('#save_annotation').attr('disabled', 'true');
-                $('#custom_shapes').val('-1');
             }
         });
     });
@@ -398,10 +392,8 @@ function initAnnotationControls() {
         $('#search_text').val(highlightData.text);
         if ($(this).hasClass('cp')) { // update custom_shape select
             showDetail(highlightData['shape'], 'custom');
-            $('#custom_shapes').val(highlightData.custom_place_id);
         } else {
             showDetail(highlightData['shape']);
-            $('#custom_shapes').val('-1');
         }
     });
     $('#search_text').keypress(function (e) {
@@ -410,19 +402,7 @@ function initAnnotationControls() {
             return false;
         }
     });
-    $('#custom_shapes').on('change', function() {
-        var custom_place_id = $(this).find(':selected').val();
-        if (custom_place_id in window.customShapes) {
-            showDetail(window.customShapes[custom_place_id].geotext, 'custom');
-            window.newHighlight.custom_place_id = custom_place_id;
-            delete window.newHighlight.place_id;
-            $('#save_annotation').removeAttr('disabled');
-        } else {
-            window.vectorSource.clear();
-            delete window.newHighlight.custom_place_id;
-            $('#save_annotation').attr('disabled', 'true');
-        }
-    });
+
 }
 function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
@@ -471,23 +451,7 @@ function loadDocument(id) {
         }
     });
 }
-function reloadSavedShapes() {
-    $.ajax({
-        url: 'load_custom_shapes',
-        type: 'post',
-        success: function(xhr) {
-            window.customShapes = {};
-            var options = '<option value="-1">(Custom shape)</option>';
-            for (var i = 0; i < xhr.places.length; i ++) {
-                var shape = xhr.places[i];
-                window.customShapes[shape.id] = shape;
-                options += '<option value="' + shape.id + '">' +
-                        shape.place_name + '</option>';
-            }
-            $('#custom_shapes').html(options);
-        }
-    });
-}
+
 
 function highlight(highlight) {
     var $context = $('#doc_content');

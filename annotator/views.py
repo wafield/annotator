@@ -47,7 +47,32 @@ def indexFreq():
                     'text': an.text
                 }
             }
-
+    customPlaces = CustomPlace.objects.all()
+    for cp in customPlaces:
+        text = cp.place_name.lower().strip().replace(' ', '_')
+        if len(text) == 0:
+            continue
+        shape = cp.shape
+        if text in tmpCache:
+            cached = tmpCache[text]
+            if shape in cached: # cannot use ID as key
+                cached[shape]['freq'] += 1
+            else:
+                cached[shape] = {
+                    'freq': 1,
+                    'type': 'custom',
+                    'place_id': cp.id,
+                    'text': cp.place_name
+                }
+        else:
+            tmpCache[text] = {
+                shape: {
+                    'freq': 1,
+                    'type': 'custom',
+                    'place_id': cp.id,
+                    'text': cp.place_name
+                }
+            }
     cache.clear()
     for key in tmpCache:
         print key,
@@ -137,16 +162,6 @@ def load_annotation(request):
         response['highlights'].append(annotation_info)
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
-def load_custom_shapes(request):
-    response = {'places': []}
-    for place in CustomPlace.objects.all().order_by('created_at'):
-        response['places'].append({
-            'id': place.id,
-            'place_name': place.place_name,
-            'geotext': place.shape,
-        })
-    return HttpResponse(json.dumps(response), mimetype='application/json')
-
 def search_annotation(request):
     searchText = request.REQUEST.get('text').lower().replace(' ', '_')
     cached = cache.get(searchText)
@@ -169,17 +184,8 @@ def search_annotation(request):
 
 def load_activities(request):
     annotations = Annotation.objects.all()
-    #newshape = CustomPlace.objects.all()
-    #searchlog = SearchLog.objects.exclude(ipaddress='130.203.151.199').exclude(query='')
     activities = []
     activities += [item.toActivity() for item in annotations]
-    #activities += [item.toActivity() for item in newshape]
-    #lastitem = {'query': '', 'ip': ''}
-    #for item in searchlog:
-    #    if item.query == lastitem['query'] and item.ipaddress == lastitem['ip']:
-    #        continue
-    #    lastitem = {'query': item.query, 'ip': item.ipaddress}
-    #    activities.append(item.toActivity())
     activities = sorted(activities, key=lambda x:x['time'], reverse=True)
     return HttpResponse(json.dumps({
         'html': render_to_string("activities.html", {'activities': activities})
