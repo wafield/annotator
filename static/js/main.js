@@ -77,7 +77,10 @@ $(document).ready(function() {
                     .draw(false);
             }
         })
-    });
+    }).on('click', '#rebuild_index', function() {
+		$('body').off('click', '#rebuild_index');
+		$.ajax('update_index');
+	});
     $('#activities').on('change', '.resolve_code', function() {
         var that = this;
         $.ajax({

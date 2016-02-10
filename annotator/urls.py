@@ -16,4 +16,5 @@ urlpatterns = patterns('',
     url(r'^delete_annotation$', views.delete_annotation),
     url(r'^search_annotation$', views.search_annotation),
     url(r'^change_code$', views.change_code),
+    url(r'^update_index$', views.update_index),
 )

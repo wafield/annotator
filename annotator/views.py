@@ -10,7 +10,7 @@ from django.core.cache import cache
 
 from models import *
 
-def indexFreq():
+def update_index(request):
     print "Building frequency index ..."
     anno = Annotation.objects.all()
     tmpCache = {}
@@ -77,8 +77,8 @@ def indexFreq():
     for key in tmpCache:
         cache.set(key, tmpCache[key])
     print "Frequency index built."
+    return HttpResponse()
 
-indexFreq()
 
 def home(request):
     context = {}
