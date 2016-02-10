@@ -26,25 +26,31 @@ def indexFreq():
             place_type = 'custom'
         else:
             continue
+        shape = an.shape
         if text in tmpCache:
             cached = tmpCache[text]
-            if place_id in cached:
-                cached[place_id]['freq'] += 1
+            if shape in cached: # cannot use ID as key
+                cached[shape]['freq'] += 1
             else:
-                cached[place_id] = {
+                cached[shape] = {
                     'freq': 1,
-                    'type': place_type
+                    'type': place_type,
+                    'place_id': place_id,
+                    'text': an.text
                 }
         else:
             tmpCache[text] = {
-                place_id: {
+                shape: {
                     'freq': 1,
-                    'type': place_type
+                    'type': place_type,
+                    'place_id': place_id,
+                    'text': an.text
                 }
             }
 
     cache.clear()
     for key in tmpCache:
+        print key,
         cache.set(key, tmpCache[key])
     print "Frequency index built."
 
@@ -142,23 +148,23 @@ def load_custom_shapes(request):
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
 def search_annotation(request):
-    searchText = request.REQUEST.get('text').replace(' ', '_')
+    searchText = request.REQUEST.get('text').lower().replace(' ', '_')
     cached = cache.get(searchText)
     res = []
     if cached:
-        for key in cached:
-            if cached[key]['type'] == 'nominatim':
-                shape = '' # TODO access shape from lrs database
-            else:
-                shape = ''
-            res.append({
-                'id': key,
-                'freq': cached[key]['freq'],
-                'type': cached[key]['type'],
-                'shape': shape
-            })
+        res = sorted([{
+            'place_id': cached[shape]['place_id'],
+            'freq': cached[shape]['freq'],
+            'type': cached[shape]['type'],
+            'shape': shape,
+            'text': cached[shape]['text']
+        } for shape in cached], key=lambda f:f['freq'], reverse=True)
+    html = render_to_string('matched anno.html', {
+        'matched': res
+    })
     return HttpResponse(json.dumps({
-        'annotation_matches': res
+        'html': html,
+        'matches': res
     }), mimetype='application/json')
 
 def load_activities(request):

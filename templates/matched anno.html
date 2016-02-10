@@ -1,0 +1,14 @@
+{% if matched %}
+Found in previous annotations:
+<div class="ui ordered list">
+{% for match in matched %}
+	<a class="previous_anno item" data-place-type="{{ match.type }}" data-place-id="{{ match.place_id }}">
+	{{ match.text }}
+	{% if match.type == 'custom' %} (Custom place){% endif %}
+	 ({{ match.freq }})
+	</a>
+{% endfor %}
+</div>
+{% else %}
+No previous annotations found.
+{% endif %}
