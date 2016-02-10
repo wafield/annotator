@@ -75,7 +75,6 @@ def indexFreq():
             }
     cache.clear()
     for key in tmpCache:
-        print key,
         cache.set(key, tmpCache[key])
     print "Frequency index built."
 
