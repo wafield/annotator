@@ -244,7 +244,7 @@ function getRecommendation(text) {
 
 	var previousAnnotation = false;
 
-	$('#previous_annotations').html('');
+	$('#previous_annotations').html('<b>Searching previous annotations</b>');
 	$('#local_results').html('');
 	$('#global_results').html('');
 	window.searchResults = {};
