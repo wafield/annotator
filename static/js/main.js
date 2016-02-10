@@ -112,16 +112,8 @@ $(document).ready(function() {
 
     }).on('click', '#search_global', function(e) {
         e.preventDefault();
-        $('#global_results').html('Searching globally...');
-        var text = $('#search_text').val();
-        var searchtext = text.trim().replace(' ', '+');
-        $.ajax({
-            url: '//nominatim.openstreetmap.org/search.php',
-            data: 'q=' + searchtext + '&format=json&countrycodes=us&polygon_text=1', // TODO addressdetails=1 for ontology distance
-            success: function (xhr) {
-                showGlobalResults(xhr);
-            }
-        });
+		var text = $('#search_text').val();
+		searchGlobal(text);
     });
 
     $('#save_shape').click(function() {
@@ -272,22 +264,40 @@ function getRecommendation(text) {
 		}
 	}).done(function() {
 		if (previousAnnotation) return;
-		searchLocal(text).done(function() {
-			return;
+		searchLocal(text, function() {
+			if (Object.keys(window.searchResults).length != 0) {
+				return;
+			}
+			searchGlobal(text);
 		});
 	});
 }
 
-function searchLocal(searchtext) {
-	var searchtext = searchtext.trim().replace(' ', '+');
+function searchGlobal(searchtext) {
+	$('#global_results').html('<b>Searching globally...</b>');
+	searchtext = searchtext.trim().replace(' ', '+');
+	$.ajax({
+		url: '//nominatim.openstreetmap.org/search.php',
+		data: 'q=' + searchtext + '&format=json&countrycodes=us&polygon_text=1&addressdetails=1',
+		success: function (xhr) {
+			showGlobalResults(xhr);
+		}
+	});
+}
+
+function searchLocal(searchtext, finalCallback) {
+	searchtext = searchtext.trim().replace(' ', '+');
 	var results = [];
-	$('#local_results').html('Searching locally...');
-	return $.ajax({
+	$('#local_results').html('<b>Searching locally...</b>');
+	$.ajax({
 		url: '//gir.ist.psu.edu/nominatim/search.php',
 		data: 'q=' + searchtext + '&format=json&polygon_text=1',
 		success: function(xhr) {
 			if (xhr.length == 0) {
 				showLocalResults(results);
+				if (typeof finalCallback == 'function') {
+					finalCallback();
+				}
 				return;
 			}
 			results = results.concat(xhr);
@@ -301,6 +311,9 @@ function searchLocal(searchtext) {
 				success: function(xhr) {
 					if (xhr.length == 0) {
 						showLocalResults(results);
+						if (typeof finalCallback == 'function') {
+							finalCallback();
+						}
 						return;
 					}
 					results = results.concat(xhr);
@@ -314,6 +327,9 @@ function searchLocal(searchtext) {
 						success: function(xhr) {
 							results = results.concat(xhr);
 							showLocalResults(results);
+							if (typeof finalCallback == 'function') {
+								finalCallback();
+							}
 						}
 					});
 				}
@@ -325,7 +341,7 @@ function searchLocal(searchtext) {
 function showLocalResults(results) {
 	if (results.length > 0) {
 		var wgs84Sphere = new ol.Sphere(6378137);
-		var html = 'Local results:<div class="ui celled list">';
+		var html = '<b>Local results:</b><div class="ui celled list">';
 		for (var i = 0; i < results.length; i ++) {
 			results[i].distance = wgs84Sphere.haversineDistance(window.overallCentroid, [
 				results[i].lon,
@@ -346,26 +362,60 @@ function showLocalResults(results) {
 		html += '</div>';
 		$('#local_results').html(html);
 	} else {
-		$('#local_results').html('No local results.');
+		$('#local_results').html('<b>No local results.</b>');
 	}
 
 }
 
 function showGlobalResults(results) {
 	if (results.length > 0) {
-		var html = 'Global results:<div class="ui celled list">';
-		results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
+		var html = '<b>Global results:</b><div class="ui celled list">';
 		for (var i =0; i < results.length; i ++) {
-			var shortname = results[i].display_name.replace(/, United States of America$/, '');
-			html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + shortname + ' (' + results[i].type + ')</a>';
+			results[i].ont_distance = getOntologyDistance(results[i].address);
 			window.searchResults[results[i].place_id] = results[i];
+		}
+		results.sort(function(a, b) {
+			if (b.importance > a.importance) {
+				return 1;
+			}
+			if (b.importance < a.importance) {
+				return -1;
+			}
+			return (a.ont_distance.code < b.ont_distance.code) ? 1 : ((b.ont_distance.code < a.ont_distance.code) ? -1 : 0);
+		});
+		//results.sort(function(a, b) {
+		//	if (b.ont_distance.code > a.ont_distance.code) {
+		//		return 1;
+		//	}
+		//	if (b.ont_distance.code < a.ont_distance.code) {
+		//		return -1;
+		//	}
+		//	return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);
+		//});
+		for (var i =0; i < results.length; i ++) {
+			var result = results[i];
+			var shortname = result.display_name.replace(/, United States of America$/, '');
+			html += '<a class="place item" data-place-id="' + result.place_id + '">' +
+				(result.icon ? '<img class="ui avatar image" src="' + result.icon + '">' : '') +
+				'<span class="ui grey circular label">' + result.ont_distance.text + '</span>' +
+				shortname +
+				' (' + result.importance + ')</a>';
 		}
 		html += '</div>';
 		$('#global_results').html(html);
 	} else {
-		$('#global_results').html('No global results.');
+		$('#global_results').html('<b>No global results.</b>');
 	}
 
+}
+
+function getOntologyDistance(address) {
+	var dist = {'code': 0, 'text': 'US'}; // country
+	if (address.state != 'Pennsylvania') return dist;
+	dist = {'code': 1, 'text': 'PA'};
+	if ('county' in address || address.county == 'Centre County') return dist;
+	dist = {'code': 2, 'text': 'CC'};
+	return dist;
 }
 
 function initAnnotationControls() {
