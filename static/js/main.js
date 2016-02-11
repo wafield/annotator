@@ -493,6 +493,7 @@ function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
 	window.highlightsData = {};
 	window.overallCentroid = [-77.864398, 40.792031];
+	window.drawSource.clear();
 
 	var wgs84Sphere = new ol.Sphere(6378137);
     return $.ajax({

@@ -10,12 +10,34 @@ from django.core.cache import cache
 
 from models import *
 
+index_building = False
+
+
 def update_index(request):
+    global index_building
+    if index_building:
+        return
+    index_building = True
     print "Building frequency index ..."
     anno = Annotation.objects.all()
     tmpCache = {}
+
+    segmented_docs = {} # cache segmented docs
+
+    def getTokens(content):
+        s = Segmenter()
+        try:
+            s.feed(content)
+            return s.get_tokens()
+        except HTMLParseError:
+            pass
+
     for an in anno:
-        text = an.text.lower().strip().replace(' ', '_')
+        doc = an.source
+        if doc.id not in segmented_docs: # identical behavior with get_doc
+            segmented_docs[doc.id] = getTokens('<p>' + '</p><p>'.join(doc.get_sentences_annotated()) + '</p>')
+        text = ''.join(segmented_docs[doc.id][an.start:an.end + 1])
+        text = text.lower().strip().replace(' ', '_')
         if len(text) == 0:
             continue
         if an.place_id: # from nominatim
@@ -77,6 +99,7 @@ def update_index(request):
     for key in tmpCache:
         cache.set(key, tmpCache[key])
     print "Frequency index built."
+    index_building = False
     return HttpResponse()
 
 
@@ -88,10 +111,12 @@ def home(request):
             date = art.created_at.strftime('%m/%d/%Y')
         else:
             date = 'Unknown date'
+        anno_count = Annotation.objects.filter(source=art).count()
         context['articles'].append({
             'id': art.id,
             'subject': art.subject,
-            'date': date
+            'date': date,
+            'anno_count': anno_count
         })
     return render(request, 'index.html', context)
 
@@ -219,13 +244,15 @@ def segment_text(content):
 class Segmenter(HTMLParser):
     def __init__(self):
         self.reset()
-        self.fed = []
+        self.fed = [] # final content, including tokens and tags
+        self.tokens = [] # tokens only. tokens[i] must have token_id == i
         self.token_id = 0
 
     def handle_data(self, d):
         tokens = re.findall(r"[\w'-]+|[.,\\/!?;:\" ]", d)
         for token in tokens:
             self.fed.append('<u class="tk" data-id="' + str(self.token_id) + '">' + token + '</u>')
+            self.tokens.append(token)
             self.token_id += 1
 
 
@@ -251,3 +278,6 @@ class Segmenter(HTMLParser):
 
     def get_data(self):
         return ''.join(self.fed)
+
+    def get_tokens(self):
+        return self.tokens
