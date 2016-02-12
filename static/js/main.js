@@ -8,7 +8,7 @@ $(document).ready(function() {
     window.customShapes = {};
 
     window.map = null;
-
+	window.sortBy = 'ontology';
 	window.urlPrefix = '/evaluation/';
     initmap();
 
@@ -118,7 +118,10 @@ $(document).ready(function() {
         e.preventDefault();
 		var text = $('#search_text').val();
 		searchGlobal(text);
-    });
+    }).on('click', '.sort_by', function() {
+		window.sortBy = this.getAttribute('data-sort');
+		$('#search_nominatim').trigger('click');
+	});
 
     $('#save_shape').click(function() {
         if (Object.keys(window.newHighlight).length == 0) {
@@ -295,7 +298,7 @@ function searchLocal(searchtext, finalCallback) {
 	$('#local_results').html('<b>Searching locally...</b>');
 	$.ajax({
 		url: '//gir.ist.psu.edu/nominatim/search.php',
-		data: 'q=' + searchtext + '&format=json&polygon_text=1',
+		data: 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1',
 		success: function(xhr) {
 			if (xhr.length == 0) {
 				showLocalResults(results);
@@ -305,7 +308,7 @@ function searchLocal(searchtext, finalCallback) {
 				return;
 			}
 			results = results.concat(xhr);
-			var newquery = 'q=' + searchtext + '&format=json&polygon_text=1&exclude_place_ids=';
+			var newquery = 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1&exclude_place_ids=';
 			for (var i = 0; i < results.length; i++) {
 				newquery  += results[i].place_id + ',';
 			}
@@ -321,7 +324,7 @@ function searchLocal(searchtext, finalCallback) {
 						return;
 					}
 					results = results.concat(xhr);
-					var newnewquery = 'q=' + searchtext + '&format=json&polygon_text=1&exclude_place_ids=';
+					var newnewquery = 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1&exclude_place_ids=';
 					for (var i = 0; i < results.length;i ++) {
 						newnewquery  += results[i].place_id + ',';
 					}
@@ -344,31 +347,90 @@ function searchLocal(searchtext, finalCallback) {
 
 function showLocalResults(results) {
 	if (results.length > 0) {
-		var wgs84Sphere = new ol.Sphere(6378137);
-		var html = '<b>Local results:</b><div class="ui celled list">';
-		for (var i = 0; i < results.length; i ++) {
-			results[i].distance = wgs84Sphere.haversineDistance(window.overallCentroid, [
-				results[i].lon,
-				results[i].lat
-			]);
-			window.searchResults[results[i].place_id] = results[i];
+		// find previous annotation and update window.currentFocus
+		var currentLatest = {end: -1};
+		var againstTarget = ' (calculated against <b>State College Borough</b>)';
+		for (var highlight_id in window.highlightsData) {
+			if (window.highlightsData[highlight_id].end < window.newHighlight.start &&
+				window.highlightsData[highlight_id].end > currentLatest.end &&
+				window.highlightsData[highlight_id].hasOwnProperty('place_id')) { // not a custom place
+				currentLatest = window.highlightsData[highlight_id];
+			}
 		}
-		results.sort(function(a, b) {return (a.distance > b.distance) ? 1 : ((b.distance > a.distance) ? -1 : 0);} );
-		for (var i = 0; i < results.length; i ++) {
-			var shortname = results[i].display_name.replace(/, United States of America$/, '');
-			var distance = results[i].distance / 1609.34;
-			distance = distance.toPrecision(3);
-			html += '<a class="place item" data-place-id="' + results[i].place_id + '">' +
-				'<span class="ui label">' + distance + ' mi</span>' +
-				shortname + ' (' +
-				results[i].type + ')</a>';
+		if (currentLatest.end != -1) {
+			// transform currentLatest into address
+			againstTarget = ' (calculated against <b>' + currentLatest.text + '</b>)';
+			$.ajax({
+				url: '//gir.ist.psu.edu/nominatim/details.php',
+				data: {place_id: currentLatest.place_id},
+				success: function(xhr) {
+					// parse xhr into name/type
+					window.currentFocus = {};
+					for (var i = 0; i < $(xhr).length; i ++) {
+						var segment = $($(xhr)[i]);
+						if (['state', 'county', 'township', 'city', 'neighborhood'].includes(segment.find('.type').text())) {
+							window.currentFocus[segment.find('.type').text()] = segment.find('.name').text();
+						}
+					}
+					// update window.overallCentroid with currentLatest.shape
+					var format = new ol.format.WKT();
+					var feature = format.readFeature(currentLatest.shape);
+					window.overallCentroid = ol.extent.getCenter(feature.getGeometry().getExtent());
+					presentLocalResults(results, againstTarget);
+				}
+
+			});
+		} else {
+			presentLocalResults(results, againstTarget);
 		}
-		html += '</div>';
-		$('#local_results').html(html);
 	} else {
 		$('#local_results').html('<b>No local results.</b>');
 	}
+}
 
+function presentLocalResults(results, againstTarget) {
+	var wgs84Sphere = new ol.Sphere(6378137);
+	var alternativeSort =  (window.sortBy == 'ontology' ? 'distance' : 'ontology');
+	var html = '<b>Local results:</b>' + againstTarget +
+		'<a class="sort_by" data-sort="' + alternativeSort + '">by ' + alternativeSort + '</a>' +
+		'<div class="ui celled list">';
+	for (var i = 0; i < results.length; i ++) {
+		results[i].distance = wgs84Sphere.haversineDistance(window.overallCentroid, [
+			results[i].lon,
+			results[i].lat
+		]);
+		results[i].ont_distance = getOntologyDistance(results[i].address);
+		window.searchResults[results[i].place_id] = results[i];
+	}
+	results.sort(function(a, b) {
+		if (window.sortBy == 'ontology') {
+			// sort by ontology
+			if (a.ont_distance.code < b.ont_distance.code) {
+				return 1;
+			}
+			if (a.ont_distance.code > b.ont_distance.code) {
+				return -1;
+			}
+			return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);
+		} else {
+			// sort by distance
+			return (a.distance > b.distance) ? 1 : ((b.distance > a.distance) ? -1 : 0);
+		}
+	});
+
+	for (var i = 0; i < results.length; i ++) {
+		var shortname = results[i].display_name.replace(/, United States of America$/, '');
+		var distance = results[i].distance / 1609.34;
+		distance = distance.toPrecision(3);
+		html += '<a class="place item" data-place-id="' + results[i].place_id + '">' +
+			(results[i].icon ? '<img class="ui avatar image" src="' + results[i].icon + '">' : '') +
+			(window.sortBy == 'ontology' ? ('<span class="ui grey circular label">' + results[i].ont_distance.text + '</span>') : '') +
+			(window.sortBy == 'distance' ? ('<span class="ui label">' + distance + ' mi</span>') : '') +
+			shortname + ' (' +
+			results[i].importance + ')</a>';
+	}
+	html += '</div>';
+	$('#local_results').html(html);
 }
 
 function showGlobalResults(results) {
@@ -387,15 +449,6 @@ function showGlobalResults(results) {
 			}
 			return (a.ont_distance.code < b.ont_distance.code) ? 1 : ((b.ont_distance.code < a.ont_distance.code) ? -1 : 0);
 		});
-		//results.sort(function(a, b) {
-		//	if (b.ont_distance.code > a.ont_distance.code) {
-		//		return 1;
-		//	}
-		//	if (b.ont_distance.code < a.ont_distance.code) {
-		//		return -1;
-		//	}
-		//	return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);
-		//});
 		for (var i =0; i < results.length; i ++) {
 			var result = results[i];
 			var shortname = result.display_name.replace(/, United States of America$/, '');
@@ -414,11 +467,23 @@ function showGlobalResults(results) {
 }
 
 function getOntologyDistance(address) {
+	var currentFocus = window.currentFocus;
 	var dist = {'code': 0, 'text': 'US'}; // country
-	if (address.state != 'Pennsylvania') return dist;
-	dist = {'code': 1, 'text': 'PA'};
-	if ('county' in address || address.county == 'Centre County') return dist;
-	dist = {'code': 2, 'text': 'CC'};
+	if (! (address.state == currentFocus.state)) return dist;
+	dist = {'code': 1, 'text': 'State'};
+	if (!
+		('county' in address && 'county' in currentFocus && address.county == currentFocus.county)
+	) return dist;
+	dist = {'code': 2, 'text': 'County'};
+	if (!
+		('city' in address && 'city' in currentFocus && address.city == currentFocus.city) ||
+		('township' in address && 'township' in currentFocus && address.township == currentFocus.township)
+	) return dist;
+	dist = {'code': 3, 'text': 'City'};
+	if (!
+		('neighbourhood' in address && 'neighborhood' in currentFocus && address.neighbourhood == currentFocus.neighbourhood)
+	) return dist;
+	dist = {'code': 4, 'text': 'Neighbor'};
 	return dist;
 }
 
@@ -496,7 +561,13 @@ function reloadHighlights(context_id) {
 	window.overallCentroid = [-77.864398, 40.792031];
 	window.drawSource.clear();
 
-	var wgs84Sphere = new ol.Sphere(6378137);
+	window.currentFocus = {
+		coordinates: [-77.864398, 40.792031],
+		state: 'Pennsylvania',
+		county: 'Centre County',
+		city: 'State College',
+		neighbourhood: 'Downtown State College'
+	};
     return $.ajax({
         url: window.urlPrefix + 'load_annotation',
         type: 'post',
@@ -504,36 +575,10 @@ function reloadHighlights(context_id) {
             context_id: context_id
         },
         success: function(xhr) {
-			var format = new ol.format.WKT();
-			// initialized as state college center
-			var centerX = -77.864398;
-			var centerY = 40.792031;
-			var count = 1;
             for (var i = 0; i < xhr.highlights.length; i ++) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
-				var feature = format.readFeature(xhr.highlights[i].shape);
-				var center = ol.extent.getCenter(feature.getGeometry().getExtent());
-				if (wgs84Sphere.haversineDistance(window.overallCentroid, [
-						center[0],
-						center[1]
-				]) < 5000) {
-					centerX += center[0];
-					centerY += center[1];
-					count ++;
-				}
             }
-			window.overallCentroid = [
-				centerX / count,
-				centerY / count
-			];
-			var centerPoint = new ol.Feature({
-				geometry: new ol.geom.Point(window.overallCentroid),
-			});
-			centerPoint.getGeometry().transform('EPSG:4326', 'EPSG:3857');
-			centerPoint.setStyle(window.vectorStyles.nominatim);
-			window.drawSource.addFeature(centerPoint);
-
         }
     });
 }
