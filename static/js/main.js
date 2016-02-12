@@ -9,6 +9,8 @@ $(document).ready(function() {
 
     window.map = null;
 
+	window.urlPrefix = '/annotation/';
+
     initmap();
 
     initAnnotationControls();
@@ -26,7 +28,7 @@ $(document).ready(function() {
         $('#activities').show()
             .html('<div class="ui active centered inline loader"></div>');
         $.ajax({
-            url: 'activities',
+            url: window.urlPrefix + 'activities',
             success: function(xhr) {
                 $('#show_activities').text('Refresh activities');
                 $('#activities').html(xhr.html);
@@ -68,7 +70,7 @@ $(document).ready(function() {
         var id = this.getAttribute('data-id');
         var that = this;
         $.ajax({
-            url: 'delete_annotation',
+            url: window.urlPrefix + 'delete_annotation',
             type: 'post',
             data: {id: id},
             success: function() {
@@ -82,7 +84,7 @@ $(document).ready(function() {
     $('#activities').on('change', '.resolve_code', function() {
         var that = this;
         $.ajax({
-            url: 'change_code',
+            url: window.urlPrefix + 'change_code',
             data: {
                 'id': that.getAttribute('data-id'),
                 'code': $(that).find(':selected').val(),
@@ -93,7 +95,7 @@ $(document).ready(function() {
     }).on('change', '.reference_code', function() {
         var that = this;
         $.ajax({
-            url: 'change_code',
+            url: window.urlPrefix + 'change_code',
             data: {
                 'id': that.getAttribute('data-id'),
                 'code': $(that).find(':selected').val(),
@@ -121,7 +123,7 @@ $(document).ready(function() {
         var searchtext = text.trim().replace(' ', '+');
 
         $.ajax({
-            url: 'search_annotation',
+            url: window.urlPrefix + 'search_annotation',
             data: {text: text.trim()},
             type: 'post',
             success: function(xhr) {
@@ -236,7 +238,7 @@ $(document).ready(function() {
         var end = window.newHighlight.end;
         var context_id = window.newHighlight.context_id;
         $.ajax({
-            url: 'new_annotation',
+            url: window.urlPrefix + 'new_annotation',
             data: {
                 'text': text,
                 'start': start,
@@ -334,7 +336,7 @@ $(document).ready(function() {
             data['custom_place_id'] = window.newHighlight.custom_place_id;
         }
         $.ajax({
-            url: 'new_annotation',
+            url: window.urlPrefix + 'new_annotation',
             data: data,
             type: 'post',
             success: function() {
@@ -432,7 +434,7 @@ function initAnnotationControls() {
 function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
     return $.ajax({
-        url: 'load_annotation',
+        url: window.urlPrefix + 'load_annotation',
         type: 'post',
         data: {
             context_id: context_id
@@ -448,7 +450,7 @@ function reloadHighlights(context_id) {
 }
 function loadDocument(id) {
     return $.ajax({
-        url: 'doc',
+        url: window.urlPrefix + 'doc',
         data: {
             'id': id
         },
@@ -464,7 +466,7 @@ function loadDocument(id) {
 }
 function reloadSavedShapes() {
     $.ajax({
-        url: 'load_custom_shapes',
+        url: window.urlPrefix + 'load_custom_shapes',
         type: 'post',
         success: function(xhr) {
             window.customShapes = {};
