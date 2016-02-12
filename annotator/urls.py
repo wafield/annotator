@@ -7,7 +7,7 @@ import views
 # from django.contrib import admin
 # admin.autodiscover()
 
-urlpatterns = patterns('',
+extrapatterns = patterns('',
     url(r'^$', views.home),
     url(r'^evaluation/$', views.home),
     url(r'^get_doc$', views.get_doc),
@@ -20,3 +20,6 @@ urlpatterns = patterns('',
     url(r'^update_index$', views.update_index),
 )
 
+urlpatterns = patterns('',
+    url(r'^evaluation/', include(extrapatterns))
+)
