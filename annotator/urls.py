@@ -7,7 +7,7 @@ import views
 # from django.contrib import admin
 # admin.autodiscover()
 
-annotationpatterns = patterns('',
+urlpatterns = patterns('',
     url(r'^$', views.home),
     url(r'^doc$', views.get_doc),
     url(r'^new_annotation$', views.new_annotation),
@@ -19,6 +19,3 @@ annotationpatterns = patterns('',
     url(r'^change_code$', views.change_code),
 )
 
-urlpatterns = patterns('',
-    url('annotation/', include(annotationpatterns))
-)
