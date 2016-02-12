@@ -25,7 +25,7 @@ $(document).ready(function() {
         $('#activities').show()
             .html('<div class="ui active centered inline loader"></div>');
         $.ajax({
-            url: 'activities',
+            url: '/activities',
             success: function(xhr) {
                 $('#show_activities').text('Refresh activities');
                 $('#activities').html(xhr.html);
@@ -67,7 +67,7 @@ $(document).ready(function() {
         var id = this.getAttribute('data-id');
         var that = this;
         $.ajax({
-            url: 'delete_annotation',
+            url: '/delete_annotation',
             type: 'post',
             data: {id: id},
             success: function() {
@@ -79,12 +79,12 @@ $(document).ready(function() {
         })
     }).on('click', '#rebuild_index', function() {
 		$('body').off('click', '#rebuild_index');
-		$.ajax('update_index');
+		$.ajax('/update_index');
 	});
     $('#activities').on('change', '.resolve_code', function() {
         var that = this;
         $.ajax({
-            url: 'change_code',
+            url: '/change_code',
             data: {
                 'id': that.getAttribute('data-id'),
                 'code': $(that).find(':selected').val(),
@@ -95,7 +95,7 @@ $(document).ready(function() {
     }).on('change', '.reference_code', function() {
         var that = this;
         $.ajax({
-            url: 'change_code',
+            url: '/change_code',
             data: {
                 'id': that.getAttribute('data-id'),
                 'code': $(that).find(':selected').val(),
@@ -152,7 +152,7 @@ $(document).ready(function() {
         var end = window.newHighlight.end;
         var context_id = window.newHighlight.context_id;
         $.ajax({
-            url: 'new_annotation',
+            url: '/new_annotation',
             data: {
                 'text': text,
                 'start': start,
@@ -231,7 +231,7 @@ $(document).ready(function() {
             data['custom_place_id'] = window.newHighlight.custom_place_id;
         }
         $.ajax({
-            url: 'new_annotation',
+            url: '/new_annotation',
             data: data,
             type: 'post',
             success: function() {
@@ -252,7 +252,7 @@ function getRecommendation(text) {
 	$('#global_results').html('');
 	window.searchResults = {};
 	$.ajax({
-		url: 'search_annotation',
+		url: '/search_annotation',
 		data: {text: text.trim()},
 		success: function(xhr) {
 			window.matchedAnnotations = {};
@@ -497,7 +497,7 @@ function reloadHighlights(context_id) {
 
 	var wgs84Sphere = new ol.Sphere(6378137);
     return $.ajax({
-        url: 'load_annotation',
+        url: '/load_annotation',
         type: 'post',
         data: {
             context_id: context_id
@@ -538,7 +538,7 @@ function reloadHighlights(context_id) {
 }
 function loadDocument(id) {
     return $.ajax({
-        url: 'get_doc',
+        url: '/get_doc',
         data: {
             'id': id
         },
