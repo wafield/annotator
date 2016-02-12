@@ -19,6 +19,6 @@ extrapatterns = patterns('',
     url(r'^update_index$', views.update_index),
 )
 
-urlpatterns = extrapatterns + patterns(
+urlpatterns = extrapatterns + patterns('',
     url(r'^evaluation/', include(extrapatterns))
 )
