@@ -7,8 +7,9 @@ import views
 # from django.contrib import admin
 # admin.autodiscover()
 
-evaluationpatterns = patterns('',
+urlpatterns = patterns('',
     url(r'^$', views.home),
+    url(r'^evaluation/$', views.home),
     url(r'^get_doc$', views.get_doc),
     url(r'^new_annotation$', views.new_annotation),
     url(r'^load_annotation$', views.load_annotation),
@@ -17,9 +18,5 @@ evaluationpatterns = patterns('',
     url(r'^search_annotation$', views.search_annotation),
     url(r'^change_code$', views.change_code),
     url(r'^update_index$', views.update_index),
-)
-
-urlpatterns = patterns('',
-    url(r'^evaluation/', include(evaluationpatterns)),
 )
 
