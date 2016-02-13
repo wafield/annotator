@@ -147,6 +147,11 @@ def new_annotation(request):
     source = Article.objects.get(id=context_id)
     geotext = request.REQUEST.get('geotext') # only when user-drawn
     place_name = request.REQUEST.get('place_name')  # only when user-drawn
+    res_code = None
+    if request.REQUEST.get('rank'):
+        res_code = 'R' + request.REQUEST.get('rank')
+        if request.REQUEST.get('rule'):
+            res_code += '|' + request.REQUEST.get('rule')
     now = timezone.now()
 
     # adding to custom place
@@ -164,7 +169,8 @@ def new_annotation(request):
     # refering to Nominatim place
     else:
         Annotation.objects.create(text=text, place_id=place_id, start=start,
-                                  end=end, source=source, shape=geotext, created_at=now)
+                                  end=end, source=source, shape=geotext, created_at=now,
+                                  res_code=res_code)
     return HttpResponse(json.dumps({}), mimetype='application/json')
 
 def load_annotation(request):
@@ -226,7 +232,10 @@ def change_code(request):
     code = request.REQUEST.get('code')
     annotation = Annotation.objects.get(id=id)
     if code_type == 'resolve':
-        annotation.res_code = code
+        if annotation.res_code:
+            annotation.res_code = code + annotation.res_code
+        else:
+            annotation.res_code = code
         annotation.save()
     elif code_type == 'reference':
         annotation.ref_code = code

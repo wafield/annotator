@@ -203,6 +203,21 @@ $(document).ready(function() {
         window.newHighlight.place_id = place_id;
         delete window.newHighlight.custom_place_id;
         $('#save_annotation').removeAttr('disabled');
+		if ($(this).parents('#local_results').length > 0) {
+			// from local results
+			var rank = $('#previous_annotations .item').length;
+			window.newHighlight.rank = rank + $(this).parent().children('.item').index($(this)) + 1;
+			window.newHighlight.rule = 'loc_' + window.sortBy;
+		} else if ($(this).parents('#global_results').length > 0) {
+			// from global results
+			var rank = $('#previous_annotations .item').length +
+				$('#local_results .item').length;
+			window.newHighlight.rank = rank + $(this).parent().children('.item').index($(this)) + 1;
+			window.newHighlight.rule = 'glob_prominence';
+		} else {
+			delete window.newHighlight.rank;
+			delete window.newHighlight.rule;
+		}
     }).on('click', '.previous_anno.item', function() {
 		var place_id = this.getAttribute('data-place-id');
 		if (this.getAttribute('data-place-type') == 'custom') {
@@ -216,8 +231,35 @@ $(document).ready(function() {
 			delete window.newHighlight.custom_place_id;
 			$('#save_annotation').removeAttr('disabled');
 		}
+		window.newHighlight.rank = $(this).parent().children('.item').index($(this)) + 1;
+		window.newHighlight.rule = 'previous_anno';
 	});
-    $('body').on('click', '#save_annotation', function(e) {
+    $('body').on('click', '#no_match', function(e) {
+		e.preventDefault();
+		if (Object.keys(window.newHighlight).length == 0) {
+			alert('Error. Did you highlight any text?');
+		}
+		var data = {
+			'text': $('#search_text').val(),
+			'start': window.newHighlight.start,
+			'end': window.newHighlight.end,
+			'context_id': window.newHighlight.context_id,
+
+			'rank': 0
+		};
+		$.ajax({
+			url: window.urlPrefix + 'new_annotation',
+			data: data,
+			type: 'post',
+			success: function() {
+				$('#search_text').val('');
+				reloadHighlights(window.newHighlight.context_id);
+				$('#save_annotation').attr('disabled', 'true');
+				$('#annotation_overlay').show();
+				$('#previous_annotations,#local_results,#global_results').html('');
+			}
+		});
+	}).on('click', '#save_annotation', function(e) {
         e.preventDefault();
         if (Object.keys(window.newHighlight).length == 0) {
             alert('Error. Did you highlight any text?');
@@ -227,7 +269,9 @@ $(document).ready(function() {
             'start': window.newHighlight.start,
             'end': window.newHighlight.end,
             'context_id': window.newHighlight.context_id,
-            'geotext': window.geotext
+            'geotext': window.geotext,
+			'rank': window.newHighlight.rank,
+			'rule': window.newHighlight.rule
         };
         if ('place_id' in window.newHighlight) {
             data['place_id'] = window.newHighlight.place_id;
@@ -242,7 +286,10 @@ $(document).ready(function() {
                 $('#search_text').val('');
                 reloadHighlights(window.newHighlight.context_id);
                 $('#save_annotation').attr('disabled', 'true');
-            }
+				$('#annotation_overlay').show();
+				$('#previous_annotations,#local_results,#global_results').html('');
+
+			}
         });
     });
 });
@@ -353,7 +400,8 @@ function showLocalResults(results) {
 		for (var highlight_id in window.highlightsData) {
 			if (window.highlightsData[highlight_id].end < window.newHighlight.start &&
 				window.highlightsData[highlight_id].end > currentLatest.end &&
-				window.highlightsData[highlight_id].hasOwnProperty('place_id')) { // not a custom place
+				window.highlightsData[highlight_id].hasOwnProperty('place_id') &&
+				window.highlightsData[highlight_id].place_id != null) { // not a custom place
 				currentLatest = window.highlightsData[highlight_id];
 			}
 		}
@@ -541,6 +589,7 @@ function initAnnotationControls() {
         var highlight_id = this.getAttribute('data-hl-id').split(' ')[0];
         var highlightData = window.highlightsData[highlight_id];
         $('#search_text').val(highlightData.text);
+		if (!highlightData['shape']) return; //non-resolvable cases
         if ($(this).hasClass('cp')) { // update custom_shape select
             showDetail(highlightData['shape'], 'custom');
         } else {
