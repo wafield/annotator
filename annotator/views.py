@@ -116,7 +116,8 @@ def home(request):
             'id': art.id,
             'subject': art.subject,
             'date': date,
-            'anno_count': anno_count
+            'anno_count': anno_count,
+            'type': art.article_type
         })
     return render(request, 'index.html', context)
 

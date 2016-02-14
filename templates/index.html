@@ -168,6 +168,7 @@
 					<a class="item article title" data-id="{{ article.id }}">[{{ article.id }}] {{ article.subject }}
 						<span class="description">{{ article.date }}</span>
 						{% if article.anno_count > 0 %}<div class="ui label">{{ article.anno_count }}</div>{% endif %}
+						{% if article.type != '' %}<div class="ui red label">{{ article.type }}</div>{% endif %}
 					</a>
 				{% endfor %}
 				</div>
