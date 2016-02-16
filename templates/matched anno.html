@@ -1,0 +1,14 @@
+{% if matched %}
+	<b>Found in previous annotations:</b>
+	<div class="ui celled list">
+		{% for match in matched %}
+			<a class="previous_anno item" data-place-type="{{ match.type }}" data-place-id="{{ match.place_id }}">
+				{{ match.text }}
+				{% if match.type == 'custom' %} (Custom place){% endif %}
+				({{ match.freq }})
+			</a>
+		{% endfor %}
+	</div>
+{% else %}
+	<b>No previous annotations found.</b>
+{% endif %}

@@ -14,9 +14,8 @@ $(document).ready(function() {
     initmap();
 
     initAnnotationControls();
-    reloadSavedShapes();
 
-
+	$('#article_dropdown').dropdown();
     $('body').on('click', '#show_article_list', function() {
         $('.ui.sidebar')
             .sidebar('setting', 'dimPage', 'false')
@@ -108,101 +107,15 @@ $(document).ready(function() {
         var id = this.getAttribute('data-id');
         loadDocument(id);
     });
-    $('body').on('mouseup', '.doc_content', function(e) {
-        var selected = getSelectionText();
-        if (selected.length == 0) {
-            $('#searchbox').removeAttr('style');
-            return;
-        };
-        $('#search_text').val(selected);
-    });
     $('body').on('click', '#search_nominatim', function(e) {
         e.preventDefault();
-        $('#nominatim_results').html('Searching nominatim...');
-        var text = $('#search_text').val();
-        var searchtext = text.trim().replace(' ', '+');
+        var searchtext = $('#search_text').val();
+		searchLocal(searchtext);
 
-        $.ajax({
-            url: window.urlPrefix + 'search_annotation',
-            data: {text: text.trim()},
-            type: 'post',
-            success: function(xhr) {
-                window.matchedAnnotations = {};
-                window.matchedCustomplaces = {};
-                var html = '';
-                if (xhr.annotation_matches.length != 0) {
-                    html = 'Found in previous annotations:<div class="ui ordered list">';
-                    for (var i = 0; i < xhr.annotation_matches.length; i++) {
-                        html += '<a class="previous_anno item" data-place-id="' + xhr.annotation_matches[i].place_id + '">' +
-                            xhr.annotation_matches[i].name + '</a>';
-                        window.matchedAnnotations[xhr.annotation_matches[i].place_id] = xhr.annotation_matches[i];
-                    }
-                    html += '</div>';
-                }
-                if (xhr.customplace_matches.length != 0) {
-                    html = 'Found in custom places:<div class="ui ordered list">';
-                    for (var i = 0; i < xhr.customplace_matches.length; i++) {
-                        html += '<a class="previous_cp item" data-cp-id="' + xhr.customplace_matches[i].cp_id + '">' +
-                            xhr.customplace_matches[i].name + '</a>';
-                        window.matchedCustomplaces[xhr.customplace_matches[i].cp_id] = xhr.customplace_matches[i];
-                    }
-                    html += '</div>';
-                }
-                $('#previous_annotations').html(html);
-            }
-        });
-
-        var results = [];
-        $.ajax({
-            url: '//gir.ist.psu.edu/nominatim/search.php',
-            data: 'q=' + searchtext + '&format=json&polygon_text=1',
-            success: function(xhr) {
-                if (xhr.length == 0) {
-                    showResults(results);
-                    return;
-                }
-                results = results.concat(xhr);
-                var newquery = 'q=' + searchtext + '&format=json&polygon_text=1&exclude_place_ids=';
-                for (var i = 0; i < results.length; i++) {
-                    newquery  += results[i].place_id + ',';
-                }
-                $.ajax({
-                    url: '//gir.ist.psu.edu/nominatim/search.php',
-                    data: newquery,
-                    success: function(xhr) {
-                        if (xhr.length == 0) {
-                            showResults(results);
-                            return;
-                        }
-                        results = results.concat(xhr);
-                        var newnewquery = 'q=' + searchtext + '&format=json&polygon_text=1&exclude_place_ids=';
-                        for (var i = 0; i < results.length;i ++) {
-                            newnewquery  += results[i].place_id + ',';
-                        }
-                        $.ajax({
-                            url: '//gir.ist.psu.edu/nominatim/search.php',
-                            data: newnewquery,
-                            success: function(xhr) {
-                                results = results.concat(xhr);
-                                showResults(results);
-                            }
-                        });
-                    }
-                });
-            }
-        });
     }).on('click', '#search_global', function(e) {
         e.preventDefault();
-        $('#nominatim_results').html('Searching nominatim...');
-        var text = $('#search_text').val();
-        var searchtext = text.trim().replace(' ', '+');
-        $.ajax({
-            url: '//nominatim.openstreetmap.org/search.php',
-            data: 'q=' + searchtext + '&format=json&polygon_text=1',
-            success: function (xhr) {
-                showResults(xhr);
-            }
-        });
+		var text = $('#search_text').val();
+		searchGlobal(text);
     });
 
     $('#save_shape').click(function() {
@@ -253,16 +166,13 @@ $(document).ready(function() {
                 reloadHighlights(context_id);
                 window.drawSource.clear();
                 $('#save_shape').attr('disabled', 'true');
-                reloadSavedShapes();
                 $('#save_annotation').attr('disabled', 'true');
-                $('#custom_shapes').val('-1');
             }
         })
     });
     $('#draw_line,#draw_polygon').click(function() {
         $('#draw_line,#draw_polygon').attr('disabled', 'true');
         window.drawSource.clear();
-        $('#place_id').val('');
         var value = $(this).is('#draw_line') ? 'LineString' : 'Polygon';
         window.draw = new ol.interaction.Draw({
             source: window.drawSource,
@@ -281,44 +191,59 @@ $(document).ready(function() {
         $('#searcher_overlay').hide();
     }
 
-    function showResults(results) {
-        window.searchResults = {};
-        var html = 'Nominatim results:<div class="ui ordered list">';
-        if (results.length == 0) html += '<div class="item">No result</div>';
-        results.sort(function(a,b) {return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);} );
-        for (var i =0; i < results.length; i ++) {
-            var shortname = results[i].display_name.replace(/, United States of America$/, '');
-            html += '<a class="place item" data-place-id="' + results[i].place_id + '">' + shortname + ' (' + results[i].type + ')</a>';
-            window.searchResults[results[i].place_id] = results[i];
-        }
-        html += '</div>';
-        $('#nominatim_results').html(html);
-    }
-
     $('body').on('click', '.place.item', function() {
-        $('#custom_shapes').val('-1');
         var place_id = this.getAttribute('data-place-id');
         var geotext = window.searchResults[place_id].geotext;
         showDetail(geotext);
         window.newHighlight.place_id = place_id;
         delete window.newHighlight.custom_place_id;
         $('#save_annotation').removeAttr('disabled');
+		if ($(this).parents('#local_results').length > 0) {
+			// from local results
+			var rank = $('#previous_annotations .item').length;
+		} else if ($(this).parents('#global_results').length > 0) {
+			// from global results
+			var rank = $('#previous_annotations .item').length +
+				$('#local_results .item').length;
+		}
     }).on('click', '.previous_anno.item', function() {
-        $('#custom_shapes').val('-1');
-        var place_id = this.getAttribute('data-place-id');
-        var geotext = window.matchedAnnotations[place_id].shape;
-        showDetail(geotext);
-        window.newHighlight.place_id = place_id;
-        delete window.newHighlight.custom_place_id;
-        $('#save_annotation').removeAttr('disabled');
-    }).on('click', '.previous_cp.item', function() {
-        var custom_place_id = this.getAttribute('data-cp-id');
-        showDetail(window.matchedCustomplaces[custom_place_id].shape, 'custom');
-        window.newHighlight.custom_place_id = custom_place_id;
-        delete window.newHighlight.place_id;
-        $('#save_annotation').removeAttr('disabled');
-    });
-    $('body').on('click', '#save_annotation', function(e) {
+		var place_id = this.getAttribute('data-place-id');
+		if (this.getAttribute('data-place-type') == 'custom') {
+			showDetail(window.matchedAnnotations[place_id].shape, 'custom');
+			window.newHighlight.custom_place_id = place_id;
+			delete window.newHighlight.place_id;
+			$('#save_annotation').removeAttr('disabled');
+		} else {
+			showDetail(window.matchedAnnotations[place_id].shape);
+			window.newHighlight.place_id = place_id;
+			delete window.newHighlight.custom_place_id;
+			$('#save_annotation').removeAttr('disabled');
+		}
+	});
+    $('body').on('click', '#no_match', function(e) {
+		e.preventDefault();
+		if (Object.keys(window.newHighlight).length == 0) {
+			alert('Error. Did you highlight any text?');
+		}
+		var data = {
+			'text': $('#search_text').val(),
+			'start': window.newHighlight.start,
+			'end': window.newHighlight.end,
+			'context_id': window.newHighlight.context_id,
+		};
+		$.ajax({
+			url: window.urlPrefix + 'new_annotation',
+			data: data,
+			type: 'post',
+			success: function() {
+				$('#search_text').val('');
+				reloadHighlights(window.newHighlight.context_id);
+				$('#save_annotation').attr('disabled', 'true');
+				$('#annotation_overlay').show();
+				$('#previous_annotations,#local_results,#global_results').html('');
+			}
+		});
+	}).on('click', '#save_annotation', function(e) {
         e.preventDefault();
         if (Object.keys(window.newHighlight).length == 0) {
             alert('Error. Did you highlight any text?');
@@ -343,11 +268,157 @@ $(document).ready(function() {
                 $('#search_text').val('');
                 reloadHighlights(window.newHighlight.context_id);
                 $('#save_annotation').attr('disabled', 'true');
-                $('#custom_shapes').val('-1');
-            }
+				$('#annotation_overlay').show();
+				$('#previous_annotations,#local_results,#global_results').html('');
+
+			}
         });
     });
 });
+
+function getRecommendation(text) {
+
+	$('#previous_annotations').html('<b>Searching previous annotations</b>');
+	$('#local_results').html('');
+	$('#global_results').html('');
+	window.searchResults = {};
+	$.ajax({
+		url: window.urlPrefix + 'search_annotation',
+		data: {text: text.trim()},
+		success: function(xhr) {
+			window.matchedAnnotations = {};
+			$('#previous_annotations').html(xhr.html);
+			previousAnnotation = (xhr.matches.length != 0);
+			if (previousAnnotation) {
+				for (var i = 0; i < xhr.matches.length; i++) {
+					var match = xhr.matches[i];
+					window.matchedAnnotations[match.place_id] = match;
+				}
+			}
+		}
+	});
+}
+
+function searchGlobal(searchtext) {
+	$('#global_results').html('<b>Searching globally...</b>');
+	searchtext = searchtext.trim().replace(' ', '+');
+	$.ajax({
+		url: '//nominatim.openstreetmap.org/search.php',
+		data: 'q=' + searchtext + '&format=json&countrycodes=us&polygon_text=1&addressdetails=1',
+		success: function (xhr) {
+			showGlobalResults(xhr);
+		}
+	});
+}
+
+function searchLocal(searchtext) {
+	searchtext = searchtext.trim().replace(' ', '+');
+	var results = [];
+	$('#local_results').html('<b>Searching locally...</b>');
+	$.ajax({
+		url: '//gir.ist.psu.edu/nominatim/search.php',
+		data: 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1',
+		success: function(xhr) {
+			if (xhr.length == 0) {
+				showLocalResults(results);
+				if (typeof finalCallback == 'function') {
+					finalCallback();
+				}
+				return;
+			}
+			results = results.concat(xhr);
+			var newquery = 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1&exclude_place_ids=';
+			for (var i = 0; i < results.length; i++) {
+				newquery  += results[i].place_id + ',';
+			}
+			$.ajax({
+				url: '//gir.ist.psu.edu/nominatim/search.php',
+				data: newquery,
+				success: function(xhr) {
+					if (xhr.length == 0) {
+						showLocalResults(results);
+						if (typeof finalCallback == 'function') {
+							finalCallback();
+						}
+						return;
+					}
+					results = results.concat(xhr);
+					var newnewquery = 'q=' + searchtext + '&format=json&addressdetails=1&polygon_text=1&exclude_place_ids=';
+					for (var i = 0; i < results.length;i ++) {
+						newnewquery  += results[i].place_id + ',';
+					}
+					$.ajax({
+						url: '//gir.ist.psu.edu/nominatim/search.php',
+						data: newnewquery,
+						success: function(xhr) {
+							results = results.concat(xhr);
+							showLocalResults(results);
+						}
+					});
+				}
+			});
+		}
+	});
+}
+
+function showLocalResults(results) {
+	if (results.length > 0) {
+		presentLocalResults(results)
+	} else {
+		$('#local_results').html('<b>No local results.</b>');
+	}
+}
+
+function presentLocalResults(results) {
+	var html = '<b>Local results:</b><div class="ui celled list">';
+	for (var i = 0; i < results.length; i ++) {
+		window.searchResults[results[i].place_id] = results[i];
+	}
+	results.sort(function(a, b) {
+		return (a.importance < b.importance) ? 1 : ((b.importance < a.importance) ? -1 : 0);
+	});
+
+	for (var i = 0; i < results.length; i ++) {
+		var shortname = results[i].display_name.replace(/, United States of America$/, '');
+		html += '<a class="place item" data-place-id="' + results[i].place_id + '">' +
+			(results[i].icon ? '<img class="ui avatar image" src="' + results[i].icon + '">' : '') +
+			shortname + ' (' +
+			results[i].importance + ')</a>';
+	}
+	html += '</div>';
+	$('#local_results').html(html);
+}
+
+function showGlobalResults(results) {
+	if (results.length > 0) {
+		var html = '<b>Global results:</b><div class="ui celled list">';
+		for (var i =0; i < results.length; i ++) {
+			window.searchResults[results[i].place_id] = results[i];
+		}
+		results.sort(function(a, b) {
+			if (b.importance > a.importance) {
+				return 1;
+			}
+			if (b.importance < a.importance) {
+				return -1;
+			}
+			return 0;
+		});
+		for (var i =0; i < results.length; i ++) {
+			var result = results[i];
+			var shortname = result.display_name.replace(/, United States of America$/, '');
+			html += '<a class="place item" data-place-id="' + result.place_id + '">' +
+				(result.icon ? '<img class="ui avatar image" src="' + result.icon + '">' : '') +
+				shortname +
+				' (' + result.importance + ')</a>';
+		}
+		html += '</div>';
+		$('#global_results').html(html);
+	} else {
+		$('#global_results').html('<b>No global results.</b>');
+	}
+
+}
 
 function initAnnotationControls() {
     $('body').on('mousedown', '#doc_content', function (e) {
@@ -386,7 +457,7 @@ function initAnnotationControls() {
                 for (var i = 0; i < highlights.length; i++) {
                     text += highlights[i].textContent;
                 }
-                ;
+				getRecommendation(text);
                 window.newHighlight.text = text;
                 window.newHighlight.context_id = $('#doc_content').attr('data-article-id');
                 $('#search_text').val(window.newHighlight.text);
@@ -403,12 +474,11 @@ function initAnnotationControls() {
         var highlight_id = this.getAttribute('data-hl-id').split(' ')[0];
         var highlightData = window.highlightsData[highlight_id];
         $('#search_text').val(highlightData.text);
+		if (!highlightData['shape']) return; //non-resolvable cases
         if ($(this).hasClass('cp')) { // update custom_shape select
             showDetail(highlightData['shape'], 'custom');
-            $('#custom_shapes').val(highlightData.custom_place_id);
         } else {
             showDetail(highlightData['shape']);
-            $('#custom_shapes').val('-1');
         }
     });
     $('#search_text').keypress(function (e) {
@@ -433,6 +503,9 @@ function initAnnotationControls() {
 }
 function reloadHighlights(context_id) {
     $('#doc_content .tk').removeClass('highlighted');
+	window.highlightsData = {};
+	window.drawSource.clear();
+
     return $.ajax({
         url: window.urlPrefix + 'load_annotation',
         type: 'post',
@@ -440,7 +513,6 @@ function reloadHighlights(context_id) {
             context_id: context_id
         },
         success: function(xhr) {
-            window.highlightsData = {};
             for (var i = 0; i < xhr.highlights.length; i ++) {
                 highlight(xhr.highlights[i]);
                 window.highlightsData[xhr.highlights[i].id] = xhr.highlights[i];
@@ -450,13 +522,18 @@ function reloadHighlights(context_id) {
 }
 function loadDocument(id) {
     return $.ajax({
-        url: window.urlPrefix + 'doc',
+        url: window.urlPrefix + 'get_doc',
         data: {
             'id': id
         },
         success: function(xhr) {
-            $('#article_title').text('[' + xhr.id + '] ' + xhr.title + '(' + xhr.date + ')');
-            var sentences = xhr.content;
+            $('#article_title').text('[' + xhr.id + '] ' + xhr.title + ' (' + xhr.date + ')');
+			var metadata = '';
+			metadata += '<p>Title: ' + xhr.title + '</p>';
+			metadata += '<p>Date: ' + xhr.fulltime + '</p>';
+			metadata += '<p>Original URL: <a href="' + xhr.url + '" target="_blank">' + xhr.url + '</a></p>';
+            $('#article_metadata').html(metadata);
+			var sentences = xhr.content;
             $('#doc_content')
                 .html(sentences)
                 .attr("data-article-id", id);
@@ -464,23 +541,7 @@ function loadDocument(id) {
         }
     });
 }
-function reloadSavedShapes() {
-    $.ajax({
-        url: window.urlPrefix + 'load_custom_shapes',
-        type: 'post',
-        success: function(xhr) {
-            window.customShapes = {};
-            var options = '<option value="-1">(Custom shape)</option>';
-            for (var i = 0; i < xhr.places.length; i ++) {
-                var shape = xhr.places[i];
-                window.customShapes[shape.id] = shape;
-                options += '<option value="' + shape.id + '">' +
-                        shape.place_name + '</option>';
-            }
-            $('#custom_shapes').html(options);
-        }
-    });
-}
+
 
 function highlight(highlight) {
     var $context = $('#doc_content');
@@ -528,7 +589,9 @@ function showDetail(geotext, shapetype) {
         feature.setStyle(window.vectorStyles.nominatim);
     }
     window.vectorSource.addFeature(feature);
-    window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize());
+    window.map.getView().fit(window.vectorSource.getExtent(), window.map.getSize(), {
+		maxZoom: 16
+	});
 }
 function initmap() {
 

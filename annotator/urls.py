@@ -9,7 +9,7 @@ import views
 
 extrapatterns = patterns('',
     url(r'^$', views.home),
-    url(r'^doc$', views.get_doc),
+    url(r'^get_doc$', views.get_doc),
     url(r'^new_annotation$', views.new_annotation),
     url(r'^load_annotation$', views.load_annotation),
     url(r'^load_custom_shapes$', views.load_custom_shapes),
@@ -17,6 +17,7 @@ extrapatterns = patterns('',
     url(r'^delete_annotation$', views.delete_annotation),
     url(r'^search_annotation$', views.search_annotation),
     url(r'^change_code$', views.change_code),
+    url(r'^update_index$', views.update_index),
 )
 
 urlpatterns = extrapatterns + patterns('',

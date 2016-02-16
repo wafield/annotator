@@ -7,21 +7,118 @@ from django.utils import timezone
 from django.shortcuts import render, render_to_response
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.core.cache import cache
 
 from models import *
+
+index_building = False
+
+
+def update_index(request):
+    global index_building
+    if index_building:
+        return
+    index_building = True
+    print "Building frequency index ..."
+    anno = Annotation.objects.all()
+    tmpCache = {}
+
+    segmented_docs = {} # cache segmented docs
+
+    def getTokens(content):
+        s = Segmenter()
+        try:
+            s.feed(content)
+            return s.get_tokens()
+        except HTMLParseError:
+            pass
+
+    for an in anno:
+        doc = an.source
+        if doc.id not in segmented_docs: # identical behavior with get_doc
+            segmented_docs[doc.id] = getTokens('<p>' + '</p><p>'.join(doc.get_sentences_annotated()) + '</p>')
+        text = ''.join(segmented_docs[doc.id][an.start:an.end + 1])
+        text = text.lower().strip().replace(' ', '_')
+        if len(text) == 0:
+            continue
+        if an.place_id: # from nominatim
+            place_id = an.place_id
+            place_type = 'nominatim'
+        elif an.custom_place:
+            place_id = an.custom_place.id
+            place_type = 'custom'
+        else:
+            continue
+        shape = an.shape
+        if text in tmpCache:
+            cached = tmpCache[text]
+            if shape in cached: # cannot use ID as key
+                cached[shape]['freq'] += 1
+            else:
+                cached[shape] = {
+                    'freq': 1,
+                    'type': place_type,
+                    'place_id': place_id,
+                    'text': an.text
+                }
+        else:
+            tmpCache[text] = {
+                shape: {
+                    'freq': 1,
+                    'type': place_type,
+                    'place_id': place_id,
+                    'text': an.text
+                }
+            }
+    customPlaces = CustomPlace.objects.all()
+    for cp in customPlaces:
+        text = cp.place_name.lower().strip().replace(' ', '_')
+        if len(text) == 0:
+            continue
+        shape = cp.shape
+        if text in tmpCache:
+            cached = tmpCache[text]
+            if shape in cached: # cannot use ID as key
+                cached[shape]['freq'] += 1
+            else:
+                cached[shape] = {
+                    'freq': 1,
+                    'type': 'custom',
+                    'place_id': cp.id,
+                    'text': cp.place_name
+                }
+        else:
+            tmpCache[text] = {
+                shape: {
+                    'freq': 1,
+                    'type': 'custom',
+                    'place_id': cp.id,
+                    'text': cp.place_name
+                }
+            }
+    cache.clear()
+    for key in tmpCache:
+        cache.set(key, tmpCache[key])
+    print "Frequency index built."
+    index_building = False
+    return HttpResponse()
+
 
 def home(request):
     context = {}
     context['articles'] = []
-    for art in Article.objects.filter(article_type='Local News').order_by('id'):
+    for art in Article.objects.filter(id__gte=569).order_by('id'):
         if art.created_at:
             date = art.created_at.strftime('%m/%d/%Y')
         else:
             date = 'Unknown date'
+        anno_count = Annotation.objects.filter(source=art).count()
         context['articles'].append({
             'id': art.id,
             'subject': art.subject,
-            'date': date
+            'date': date,
+            'anno_count': anno_count,
+            'type': art.article_type
         })
     return render(request, 'index.html', context)
 
@@ -32,13 +129,17 @@ def get_doc(request):
     content = segment_text(content)
     if art.created_at:
         date = art.created_at.strftime('%m/%d/%Y')
+        fulltime = art.created_at.strftime('%m/%d/%Y %H:%M')
     else:
         date = 'Unknown date'
+        fulltime = 'Unknown date'
     response = {
         'title': art.subject,
         'content': content,
         'id': art.id,
-        'date': date
+        'date': date,
+        'fulltime': fulltime,
+        'url': art.article_url
     }
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
@@ -102,41 +203,29 @@ def load_custom_shapes(request):
     return HttpResponse(json.dumps(response), mimetype='application/json')
 
 def search_annotation(request):
-    searchText = request.REQUEST.get('text')
-    anno_matches = Annotation.objects.filter(text__iexact=searchText, place_id__isnull=False)
-    custom_matches = CustomPlace.objects.filter(place_name__iexact=searchText)
-    results_anno = []
-    results_cp = []
-    for anno in anno_matches:
-        results_anno.append({
-            'place_id': anno.place_id,
-            'shape': anno.shape,
-            'name': anno.text
-        })
-    for cp in custom_matches:
-        results_cp.append({
-            'cp_id': cp.id,
-            'shape': cp.shape,
-            'name': cp.place_name
-        })
+    searchText = request.REQUEST.get('text').lower().replace(' ', '_')
+    cached = cache.get(searchText)
+    res = []
+    if cached:
+        res = sorted([{
+            'place_id': cached[shape]['place_id'],
+            'freq': cached[shape]['freq'],
+            'type': cached[shape]['type'],
+            'shape': shape,
+            'text': cached[shape]['text']
+        } for shape in cached], key=lambda f:f['freq'], reverse=True)
+    html = render_to_string('matched anno.html', {
+        'matched': res
+    })
     return HttpResponse(json.dumps({
-        'annotation_matches': results_anno,
-        'customplace_matches': results_cp
+        'html': html,
+        'matches': res
     }), mimetype='application/json')
 
 def load_activities(request):
     annotations = Annotation.objects.all()
-    #newshape = CustomPlace.objects.all()
-    #searchlog = SearchLog.objects.exclude(ipaddress='130.203.151.199').exclude(query='')
     activities = []
     activities += [item.toActivity() for item in annotations]
-    #activities += [item.toActivity() for item in newshape]
-    #lastitem = {'query': '', 'ip': ''}
-    #for item in searchlog:
-    #    if item.query == lastitem['query'] and item.ipaddress == lastitem['ip']:
-    #        continue
-    #    lastitem = {'query': item.query, 'ip': item.ipaddress}
-    #    activities.append(item.toActivity())
     activities = sorted(activities, key=lambda x:x['time'], reverse=True)
     return HttpResponse(json.dumps({
         'html': render_to_string("activities.html", {'activities': activities})
@@ -153,7 +242,10 @@ def change_code(request):
     code = request.REQUEST.get('code')
     annotation = Annotation.objects.get(id=id)
     if code_type == 'resolve':
-        annotation.res_code = code
+        if annotation.res_code:
+            annotation.res_code = code + annotation.res_code
+        else:
+            annotation.res_code = code
         annotation.save()
     elif code_type == 'reference':
         annotation.ref_code = code
@@ -171,13 +263,15 @@ def segment_text(content):
 class Segmenter(HTMLParser):
     def __init__(self):
         self.reset()
-        self.fed = []
+        self.fed = [] # final content, including tokens and tags
+        self.tokens = [] # tokens only. tokens[i] must have token_id == i
         self.token_id = 0
 
     def handle_data(self, d):
         tokens = re.findall(r"[\w'-]+|[.,\\/!?;:\" ]", d)
         for token in tokens:
             self.fed.append('<u class="tk" data-id="' + str(self.token_id) + '">' + token + '</u>')
+            self.tokens.append(token)
             self.token_id += 1
 
 
@@ -203,3 +297,6 @@ class Segmenter(HTMLParser):
 
     def get_data(self):
         return ''.join(self.fed)
+
+    def get_tokens(self):
+        return self.tokens
