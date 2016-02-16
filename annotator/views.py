@@ -155,11 +155,11 @@ def new_annotation(request):
             res_code += '|' + request.REQUEST.get('rule')
     now = timezone.now()
 
-    # adding to custom place
+    # refering to an existing custom place
     if custom_place_id:
         place = CustomPlace.objects.get(id=custom_place_id)
         Annotation.objects.create(text=text, custom_place=place, start=start, end=end,
-                                  source=source, shape=geotext, created_at=now)
+                                  source=source, shape=geotext, created_at=now, res_code=res_code)
     # creating a new custom place
     elif geotext and place_name and len(geotext) > 0 and len(place_name) > 0:
         newPlace = CustomPlace(shape=geotext, place_name=place_name, created_at=now)
