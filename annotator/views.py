@@ -128,13 +128,17 @@ def get_doc(request):
     content = segment_text(content)
     if art.created_at:
         date = art.created_at.strftime('%m/%d/%Y')
+        fulltime = art.created_at.strftime('%m/%d/%Y %H:%M')
     else:
         date = 'Unknown date'
+        fulltime = 'Unknown date'
     response = {
         'title': art.subject,
         'content': content,
         'id': art.id,
-        'date': date
+        'date': date,
+        'fulltime': fulltime,
+        'url': art.article_url
     }
     return HttpResponse(json.dumps(response), mimetype='application/json')
 

@@ -638,8 +638,13 @@ function loadDocument(id) {
             'id': id
         },
         success: function(xhr) {
-            $('#article_title').text('[' + xhr.id + '] ' + xhr.title + '(' + xhr.date + ')');
-            var sentences = xhr.content;
+            $('#article_title').text('[' + xhr.id + '] ' + xhr.title + ' (' + xhr.date + ')');
+			var metadata = '';
+			metadata += '<p>Title: ' + xhr.title + '</p>';
+			metadata += '<p>Date: ' + xhr.fulltime + '</p>';
+			metadata += '<p>Original URL: <a href="' + xhr.url + '" target="_blank">' + xhr.url + '</a></p>';
+            $('#article_metadata').html(metadata);
+			var sentences = xhr.content;
             $('#doc_content')
                 .html(sentences)
                 .attr("data-article-id", id);
