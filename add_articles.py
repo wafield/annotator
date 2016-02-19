@@ -27,12 +27,7 @@ for fname in os.listdir(base_dir):
             content += str(item)
 
         try:
-            art = Article.objects.get(subject=title)
-            art.content = content
-            art.content_with_tag = content
-            art.subject = title
-            art.created_at = created_at
-            art.save()
+            art = Article.objects.get(subject=title,created_at=created_at)
         except Article.DoesNotExist:
             Article.objects.create(subject=title, content=content, content_with_tag=content, created_at=created_at,
                 article_type='', article_url=url)

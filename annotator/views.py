@@ -106,7 +106,7 @@ def update_index(request):
 def home(request):
     context = {}
     context['articles'] = []
-    for art in Article.objects.filter(id__gte=569).order_by('id'):
+    for art in Article.objects.filter(id__gte=569).exclude(article_type__contains='hidden').order_by('id'):
         if art.created_at:
             date = art.created_at.strftime('%m/%d/%Y')
         else:
