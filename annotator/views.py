@@ -34,6 +34,8 @@ def update_index(request):
 
     for an in anno:
         doc = an.source
+        if not doc:
+            continue
         if doc.id not in segmented_docs: # identical behavior with get_doc
             segmented_docs[doc.id] = getTokens('<p>' + '</p><p>'.join(doc.get_sentences_annotated()) + '</p>')
         text = ''.join(segmented_docs[doc.id][an.start:an.end + 1])

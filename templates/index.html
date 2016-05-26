@@ -190,30 +190,22 @@
 			<div id="article_metadata" class="ui info message">Please select an article.</div>
 			<div class="noselect" id="doc_content">
 			</div>
-			<div id="activities" style="display:none">
-			</div>
 		</div>
 		<div id="right_panel">
-			<div id="annotation_overlay" class="noselect">Please first highlight some text</div>
 			<div id="searcher_overlay" class="noselect">Double click on the map to finish drawing</div>
 			<div id="search_area">
 				<input id="search_text" type="text" size="14" placeholder="">
-				<button id="search_nominatim">Search local</button>
-				<button id="search_global">Search global</button>
-				<button id="save_annotation" disabled>Save</button>
+				<div><b>O</b>ntological distance, <b>D</b>efault sense, or <b>G</b>eographic distance?</div>
+				<button class="searchandrank" data-method="ogd">O-G-D</button>
+				<button class="searchandrank" data-method="odg">O-D-G</button>
+				<button class="searchandrank" data-method="dog">D-O-G</button>
+				<button id="search_global">Baseline (global)</button>
 				<div id="search_results">
-					<div id="previous_annotations"></div>
-					<div id="local_results"></div>
-					<div id="global_results"></div>
-					<button id="no_match">No match</button>
+
 				</div>
 			</div>
 			<div id="map_area">
-				<div id="map_toolbar">
-					<button id="draw_line">Draw line</button>
-					<button id="draw_polygon">Draw polygon</button>
-					<button id="save_shape" disabled>Save shape and annotation</button>
-				</div>
+
 				<div id="map"></div>
 			</div>
 		</div>
